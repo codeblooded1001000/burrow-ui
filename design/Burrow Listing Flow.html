@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Burrow — Listing Creation Flow</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+  <script type="text/babel" src="design-canvas.jsx"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #ECEAE5; font-family: 'Inter', sans-serif; }
+    @keyframes burrow-spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+
+/* ═══════════════════════════════════════
+   TOKENS
+═══════════════════════════════════════ */
+const TK = {
+  light: {
+    bgBase:        '#FAF8F5',
+    surface:       '#FFFFFF',
+    border:        '#EDE8E0',
+    textPrimary:   '#1A1A1A',
+    textSecondary: '#6B6B6B',
+    textTertiary:  '#A8A29A',
+    accent:        '#1A5F5A',
+    accentHover:   '#134543',
+    verified:      '#2D7A4F',
+    warning:       '#C5573D',
+    focusRing:     'rgba(26,95,90,0.28)',
+    accentTint:    'rgba(26,95,90,0.05)',
+    accentTint2:   'rgba(26,95,90,0.10)',
+  },
+  dark: {
+    bgBase:        '#14211F',
+    surface:       '#1B2A28',
+    border:        '#2A3936',
+    textPrimary:   '#F5F1EA',
+    textSecondary: '#B5AEA3',
+    textTertiary:  '#6F6862',
+    accent:        '#5BA89E',
+    accentHover:   '#7AC0B6',
+    verified:      '#5BA876',
+    warning:       '#D87A60',
+    focusRing:     'rgba(91,168,158,0.32)',
+    accentTint:    'rgba(91,168,158,0.07)',
+    accentTint2:   'rgba(91,168,158,0.13)',
+  },
+};
+
+/* ═══════════════════════════════════════
+   PRIMITIVES
+═══════════════════════════════════════ */
+
+function Wordmark({ mode, size = 28 }) {
+  return (
+    <span style={{
+      fontFamily: "'Fraunces', serif",
+      fontWeight: 500,
+      fontSize: size,
+      letterSpacing: '-0.02em',
+      color: TK[mode].accent,
+      lineHeight: 1,
+    }}>burrow</span>
+  );
+}
+
+function ProgressBar({ progress, mode }) {
+  const tk = TK[mode];
+  return (
+    <div style={{ width: 'calc(100% - 48px)', margin: '0 auto', height: 2, background: tk.border, borderRadius: 2, overflow: 'hidden' }}>
+      <div style={{ width: `${progress}%`, height: '100%', background: tk.accent, borderRadius: 2, transition: 'width 0.4s ease' }} />
+    </div>
+  );
+}
+
+function BackArrow({ mode }) {
+  const tk = TK[mode];
+  return (
+    <div style={{ width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', marginLeft: -8 }}>
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <path d="M13 16L7 10L13 4" stroke={tk.textPrimary} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </div>
+  );
+}
+
+function FHead({ children, mode, size = 28, style: x }) {
+  return (
+    <h1 style={{ fontFamily: "'Fraunces', serif", fontWeight: 500, fontSize: size, letterSpacing: '-0.02em', color: TK[mode].textPrimary, lineHeight: 1.2, ...x }}>
+      {children}
+    </h1>
+  );
+}
+
+function Subhead({ children, mode, style: x }) {
+  return (
+    <p style={{ fontFamily: "'Inter', sans-serif", fontWeight: 400, fontSize: 16, color: TK[mode].textSecondary, lineHeight: 1.55, ...x }}>
+      {children}
+    </p>
+  );
+}
+
+function Label({ children, mode }) {
+  return (
+    <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 14, color: TK[mode].textSecondary }}>
+      {children}
+    </span>
+  );
+}
+
+function InputField({ label, placeholder, mode, value, prefix, type = 'text', microcopy }) {
+  const tk = TK[mode];
+  const [focused, setFocused] = React.useState(false);
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {label && <Label mode={mode}>{label}</Label>}
+      <div style={{ position: 'relative' }}>
+        {prefix && (
+          <span style={{
+            position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)',
+            fontSize: 16, color: tk.textSecondary, fontFamily: "'Inter', sans-serif",
+            pointerEvents: 'none', userSelect: 'none',
+          }}>{prefix}</span>
+        )}
+        <input
+          type={type}
+          defaultValue={value}
+          placeholder={placeholder}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          style={{
+            width: '100%', height: 56,
+            background: tk.surface,
+            border: `${focused ? 2 : 1}px solid ${focused ? tk.accent : tk.border}`,
+            borderRadius: 12,
+            padding: `0 16px 0 ${prefix ? 32 : 16}px`,
+            fontSize: 16,
+            fontFamily: "'Inter', sans-serif",
+            color: tk.textPrimary,
+            outline: 'none',
+            boxShadow: focused ? `0 0 0 4px ${tk.focusRing}` : 'none',
+            transition: 'border-color 0.15s, box-shadow 0.15s',
+          }}
+        />
+      </div>
+      {microcopy && <span style={{ fontSize: 12, color: tk.textTertiary, fontFamily: "'Inter', sans-serif", lineHeight: 1.5 }}>{microcopy}</span>}
+    </div>
+  );
+}
+
+function SelectField({ label, mode, value, options }) {
+  const tk = TK[mode];
+  const [focused, setFocused] = React.useState(false);
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {label && <Label mode={mode}>{label}</Label>}
+      <div style={{ position: 'relative' }}>
+        <select
+          defaultValue={value}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          style={{
+            width: '100%', height: 56,
+            background: tk.surface,
+            border: `${focused ? 2 : 1}px solid ${focused ? tk.accent : tk.border}`,
+            borderRadius: 12,
+            padding: '0 40px 0 16px',
+            fontSize: 16,
+            fontFamily: "'Inter', sans-serif",
+            color: value ? tk.textPrimary : tk.textTertiary,
+            outline: 'none',
+            appearance: 'none',
+            cursor: 'pointer',
+            boxShadow: focused ? `0 0 0 4px ${tk.focusRing}` : 'none',
+            transition: 'border-color 0.15s, box-shadow 0.15s',
+          }}
+        >
+          <option value="" disabled>{options[0]}</option>
+          {options.slice(1).map(o => <option key={o} value={o}>{o}</option>)}
+        </select>
+        <svg style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <path d="M4 6l4 4 4-4" stroke={tk.textTertiary} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </div>
+    </div>
+  );
+}
+
+function PillRow({ label, options, value, onChange, mode, multi = false }) {
+  const tk = TK[mode];
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {label && <Label mode={mode}>{label}</Label>}
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        {options.map(opt => {
+          const selected = multi ? (value || []).includes(opt) : value === opt;
+          return (
+            <button
+              key={opt}
+              onClick={() => {
+                if (!onChange) return;
+                if (multi) {
+                  const cur = value || [];
+                  onChange(selected ? cur.filter(v => v !== opt) : [...cur, opt]);
+                } else {
+                  onChange(opt);
+                }
+              }}
+              style={{
+                height: 40,
+                padding: '0 16px',
+                borderRadius: 100,
+                border: `1px solid ${selected ? tk.accent : tk.border}`,
+                background: selected ? tk.accent : 'transparent',
+                color: selected ? (mode === 'dark' ? TK.dark.bgBase : '#FAF8F5') : tk.textSecondary,
+                fontSize: 14,
+                fontFamily: "'Inter', sans-serif",
+                fontWeight: selected ? 500 : 400,
+                cursor: 'pointer',
+                transition: 'all 0.15s',
+                whiteSpace: 'nowrap',
+              }}
+            >{opt}</button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function Toggle({ label, value, onChange, mode }) {
+  const tk = TK[mode];
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 2, paddingBottom: 2 }}>
+      <span style={{ fontSize: 15, color: tk.textPrimary, fontFamily: "'Inter', sans-serif" }}>{label}</span>
+      <div
+        onClick={() => onChange && onChange(!value)}
+        style={{
+          width: 44, height: 26,
+          borderRadius: 13,
+          background: value ? tk.accent : tk.border,
+          position: 'relative',
+          cursor: 'pointer',
+          transition: 'background 0.2s',
+          flexShrink: 0,
+        }}
+      >
+        <div style={{
+          position: 'absolute',
+          top: 3, left: value ? 21 : 3,
+          width: 20, height: 20,
+          borderRadius: '50%',
+          background: '#fff',
+          transition: 'left 0.2s',
+          boxShadow: '0 1px 4px rgba(0,0,0,0.18)',
+        }} />
+      </div>
+    </div>
+  );
+}
+
+function PrimaryBtn({ children, mode, disabled, onClick }) {
+  const tk = TK[mode];
+  return (
+    <button
+      disabled={disabled}
+      onClick={onClick}
+      style={{
+        width: '100%', height: 52,
+        background: disabled ? (mode === 'dark' ? '#2A3936' : '#D4CEC8') : tk.accent,
+        color: disabled ? tk.textTertiary : (mode === 'dark' ? TK.dark.bgBase : '#FAF8F5'),
+        border: 'none', borderRadius: 12,
+        fontSize: 16, fontFamily: "'Inter', sans-serif", fontWeight: 500,
+        cursor: disabled ? 'not-allowed' : 'pointer',
+      }}
+    >{children}</button>
+  );
+}
+
+function SecondaryBtn({ children, mode, onClick }) {
+  const tk = TK[mode];
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        width: '100%', height: 52,
+        background: 'transparent',
+        color: tk.accent,
+        border: `1px solid ${tk.accent}`,
+        borderRadius: 12,
+        fontSize: 16, fontFamily: "'Inter', sans-serif", fontWeight: 500,
+        cursor: 'pointer',
+      }}
+    >{children}</button>
+  );
+}
+
+function TertiaryBtn({ children, mode, onClick, style: x }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{ background: 'none', border: 'none', color: TK[mode].accent, fontSize: 14, fontFamily: "'Inter', sans-serif", cursor: 'pointer', padding: 0, ...x }}
+    >{children}</button>
+  );
+}
+
+function VerifiedBadge({ mode, size = 14 }) {
+  const color = TK[mode].verified;
+  return (
+    <svg width={size} height={size} viewBox="0 0 14 14" fill="none" style={{ flexShrink: 0 }}>
+      <circle cx="7" cy="7" r="7" fill={color} />
+      <polyline points="4,7.2 6.2,9.4 10,5" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+    </svg>
+  );
+}
+
+/* Screen shell */
+function Shell({ mode, progress, showProgress = true, children }) {
+  const tk = TK[mode];
+  return (
+    <div style={{ width: 390, minHeight: 844, background: tk.bgBase, display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRadius: 4 }}>
+      {showProgress && (
+        <div style={{ paddingTop: 16 }}>
+          <ProgressBar progress={progress} mode={mode} />
+        </div>
+      )}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '0 24px 40px' }}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+/* Textarea */
+function TextArea({ label, placeholder, mode, rows = 4 }) {
+  const tk = TK[mode];
+  const [focused, setFocused] = React.useState(false);
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {label && <Label mode={mode}>{label}</Label>}
+      <textarea
+        placeholder={placeholder}
+        rows={rows}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        style={{
+          background: tk.surface,
+          border: `${focused ? 2 : 1}px solid ${focused ? tk.accent : tk.border}`,
+          borderRadius: 12,
+          padding: 14,
+          fontSize: 15,
+          fontFamily: "'Inter', sans-serif",
+          color: tk.textPrimary,
+          outline: 'none',
+          resize: 'none',
+          lineHeight: 1.6,
+          boxShadow: focused ? `0 0 0 4px ${tk.focusRing}` : 'none',
+          transition: 'border-color 0.15s, box-shadow 0.15s',
+        }}
+      />
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════
+   SCREEN 1 — Listing intro
+═══════════════════════════════════════ */
+function Screen1({ mode }) {
+  const tk = TK[mode];
+  return (
+    <Shell mode={mode} showProgress={false}>
+      <div style={{ marginTop: 48, display: 'flex', justifyContent: 'center' }}>
+        <Wordmark mode={mode} size={28} />
+      </div>
+
+      {/* Line art illustration */}
+      <div style={{ marginTop: 40, display: 'flex', justifyContent: 'center' }}>
+        <svg width="240" height="140" viewBox="0 0 240 140" fill="none">
+          {/* Building outline */}
+          <rect x="52" y="50" width="80" height="80" rx="3" stroke={tk.accent} strokeWidth="1.5" strokeOpacity="0.7" />
+          {/* Roof */}
+          <path d="M44 52 L92 18 L140 52" stroke={tk.accent} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" strokeOpacity="0.7" />
+          {/* Door */}
+          <rect x="82" y="98" width="20" height="32" rx="2" stroke={tk.border} strokeWidth="1.2" />
+          {/* Windows */}
+          <rect x="62" y="66" width="18" height="16" rx="2" stroke={tk.border} strokeWidth="1.2" />
+          <rect x="104" y="66" width="18" height="16" rx="2" stroke={tk.border} strokeWidth="1.2" />
+          {/* Cross on windows */}
+          <line x1="71" y1="66" x2="71" y2="82" stroke={tk.border} strokeWidth="0.8" />
+          <line x1="62" y1="74" x2="80" y2="74" stroke={tk.border} strokeWidth="0.8" />
+          <line x1="113" y1="66" x2="113" y2="82" stroke={tk.border} strokeWidth="0.8" />
+          <line x1="104" y1="74" x2="122" y2="74" stroke={tk.border} strokeWidth="0.8" />
+          {/* Ground line */}
+          <line x1="28" y1="130" x2="212" y2="130" stroke={tk.border} strokeWidth="1" strokeLinecap="round" strokeOpacity="0.5" />
+          {/* Trees */}
+          <circle cx="30" cy="108" r="14" stroke={tk.border} strokeWidth="1.2" fill="none" />
+          <line x1="30" y1="122" x2="30" y2="130" stroke={tk.border} strokeWidth="1.2" />
+          <circle cx="210" cy="108" r="14" stroke={tk.border} strokeWidth="1.2" fill="none" />
+          <line x1="210" y1="122" x2="210" y2="130" stroke={tk.border} strokeWidth="1.2" />
+          {/* Teal accent — sun */}
+          <circle cx="196" cy="28" r="12" stroke={tk.accent} strokeWidth="1.4" fill="none" strokeOpacity="0.5" />
+          <path d="M196 12v4M196 40v4M212 28h-4M184 28h-4" stroke={tk.accent} strokeWidth="1.2" strokeLinecap="round" strokeOpacity="0.4" />
+        </svg>
+      </div>
+
+      <div style={{ marginTop: 32, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <FHead mode={mode} size={30}>Tell us about your flat.</FHead>
+        <Subhead mode={mode}>Takes about 3 minutes. You can save and continue later.</Subhead>
+      </div>
+
+      <div style={{ marginTop: 'auto', paddingTop: 48, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <PrimaryBtn mode={mode}>Get started</PrimaryBtn>
+        <SecondaryBtn mode={mode}>I'll do this later</SecondaryBtn>
+      </div>
+    </Shell>
+  );
+}
+
+/* ═══════════════════════════════════════
+   SCREEN 2 — Flat basics
+═══════════════════════════════════════ */
+function Screen2({ mode }) {
+  const tk = TK[mode];
+  const [bhk, setBhk] = React.useState('2BHK');
+
+  const localities = ['Select locality', 'DLF Phase 2', 'DLF Phase 5', 'Sushant Lok', 'Sector 47', 'Sector 48', 'Cyber City', 'Golf Course Road', 'Sohna Road', 'MG Road', 'Palam Vihar'];
+
+  return (
+    <Shell mode={mode} progress={20}>
+      <div style={{ paddingTop: 20 }}><BackArrow mode={mode} /></div>
+
+      <div style={{ marginTop: 20, display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <FHead mode={mode}>Where's your flat?</FHead>
+      </div>
+
+      <div style={{ marginTop: 24, display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <SelectField
+          label="Locality"
+          mode={mode}
+          value=""
+          options={localities}
+        />
+
+        {/* Map pin card */}
+        <div style={{
+          background: tk.surface,
+          border: `1px solid ${tk.border}`,
+          borderRadius: 12,
+          overflow: 'hidden',
+        }}>
+          {/* Map placeholder */}
+          <div style={{
+            height: 100,
+            background: mode === 'dark'
+              ? 'repeating-linear-gradient(45deg, #1B2A28, #1B2A28 10px, #1E2E2C 10px, #1E2E2C 20px)'
+              : 'repeating-linear-gradient(45deg, #F5F1EA, #F5F1EA 10px, #EDE8E0 10px, #EDE8E0 20px)',
+            position: 'relative',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            {/* Grid lines */}
+            <svg style={{ position: 'absolute', inset: 0 }} width="342" height="100" viewBox="0 0 342 100" fill="none">
+              {[0,1,2,3].map(i => (
+                <line key={`h${i}`} x1="0" y1={25*(i+1)-12} x2="342" y2={25*(i+1)-12} stroke={tk.border} strokeWidth="0.8" strokeOpacity="0.6" />
+              ))}
+              {[0,1,2,3,4,5,6].map(i => (
+                <line key={`v${i}`} x1={50*(i+1)-5} y1="0" x2={50*(i+1)-5} y2="100" stroke={tk.border} strokeWidth="0.8" strokeOpacity="0.6" />
+              ))}
+            </svg>
+            {/* Pin */}
+            <svg width="28" height="36" viewBox="0 0 28 36" fill="none">
+              <path d="M14 2C8.477 2 4 6.477 4 12c0 7 10 22 10 22S24 19 24 12C24 6.477 19.523 2 14 2z" fill={tk.accent} />
+              <circle cx="14" cy="12" r="4" fill={mode === 'dark' ? TK.dark.bgBase : '#FAF8F5'} />
+            </svg>
+          </div>
+          <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: 13, color: tk.textTertiary, fontFamily: "'Inter', sans-serif" }}>
+              Exact location hidden from browse
+            </span>
+            <TertiaryBtn mode={mode} style={{ fontSize: 13, fontWeight: 500 }}>Drop pin</TertiaryBtn>
+          </div>
+        </div>
+
+        {/* BHK */}
+        <PillRow label="Flat size" options={['1BHK', '2BHK', '3BHK', '4BHK+']} value={bhk} onChange={setBhk} mode={mode} />
+
+        {/* Rent fields */}
+        <div style={{ display: 'flex', gap: 12 }}>
+          <div style={{ flex: 1 }}>
+            <InputField label="Total monthly rent" prefix="₹" placeholder="45,000" mode={mode} />
+          </div>
+          <div style={{ flex: 1 }}>
+            <InputField label="Your share" prefix="₹" placeholder="22,500" mode={mode} microcopy="What you'll pay each month" />
+          </div>
+        </div>
+
+        <InputField label="Available from" placeholder="dd / mm / yyyy" mode={mode} type="text" />
+      </div>
+
+      <div style={{ marginTop: 'auto', paddingTop: 32 }}>
+        <PrimaryBtn mode={mode}>Continue</PrimaryBtn>
+      </div>
+    </Shell>
+  );
+}
+
+/* ═══════════════════════════════════════
+   SCREEN 3 — About the flat
+═══════════════════════════════════════ */
+function PhotoZone({ isCover, mode }) {
+  const tk = TK[mode];
+  return (
+    <div style={{
+      aspectRatio: '1',
+      border: `1.5px dashed ${mode === 'dark' ? tk.accent + 'AA' : tk.accent + '88'}`,
+      borderRadius: 10,
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 4,
+      cursor: 'pointer',
+      position: 'relative',
+      background: tk.accentTint,
+    }}>
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <path d="M10 4v12M4 10h12" stroke={tk.accent} strokeWidth="1.6" strokeLinecap="round" />
+      </svg>
+      <span style={{ fontSize: 11, color: tk.accent, fontFamily: "'Inter', sans-serif", fontWeight: 500 }}>
+        {isCover ? 'Cover' : 'Add photo'}
+      </span>
+      {isCover && (
+        <div style={{
+          position: 'absolute', top: 6, left: 6,
+          background: tk.accent,
+          color: mode === 'dark' ? TK.dark.bgBase : '#FAF8F5',
+          fontSize: 9,
+          fontFamily: "'Inter', sans-serif",
+          fontWeight: 600,
+          padding: '2px 6px',
+          borderRadius: 4,
+          letterSpacing: '0.02em',
+          textTransform: 'uppercase',
+        }}>Cover</div>
+      )}
+    </div>
+  );
+}
+
+function Screen3({ mode }) {
+  const tk = TK[mode];
+
+  const amenities = ['AC', 'Parking', 'Lift', 'Balcony', 'Furnished', 'Semi-furnished', 'Power backup', 'Wi-Fi', 'Pet-friendly', 'Water 24/7'];
+  const [checked, setChecked] = React.useState(new Set(['AC', 'Lift', 'Wi-Fi']));
+
+  const toggle = a => {
+    const s = new Set(checked);
+    s.has(a) ? s.delete(a) : s.add(a);
+    setChecked(s);
+  };
+
+  return (
+    <Shell mode={mode} progress={40}>
+      <div style={{ paddingTop: 20 }}><BackArrow mode={mode} /></div>
+      <div style={{ marginTop: 20 }}>
+        <FHead mode={mode}>Show your flat</FHead>
+      </div>
+
+      <div style={{ marginTop: 24, display: 'flex', flexDirection: 'column', gap: 24 }}>
+        {/* Photo grid */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <Label mode={mode}>Photos</Label>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+            {[true, false, false, false, false, false].map((isCover, i) => (
+              <PhotoZone key={i} isCover={isCover} mode={mode} />
+            ))}
+          </div>
+          <span style={{ fontSize: 12, color: tk.textTertiary, fontFamily: "'Inter', sans-serif" }}>
+            First photo will be the cover. Add up to 6.
+          </span>
+        </div>
+
+        <TextArea
+          label="Tell flatmates about your place"
+          placeholder="It's a sunny 2BHK with great natural light, walking distance to Cyber City metro…"
+          mode={mode}
+          rows={4}
+        />
+
+        {/* Amenities */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <Label mode={mode}>Amenities</Label>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0 }}>
+            {amenities.map((a, i) => {
+              const on = checked.has(a);
+              return (
+                <div
+                  key={a}
+                  onClick={() => toggle(a)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    padding: '12px 0',
+                    borderBottom: `1px solid ${tk.border}`,
+                    cursor: 'pointer',
+                    paddingRight: i % 2 === 0 ? 12 : 0,
+                    paddingLeft: i % 2 === 1 ? 12 : 0,
+                    borderLeft: i % 2 === 1 ? `1px solid ${tk.border}` : 'none',
+                  }}
+                >
+                  <div style={{
+                    width: 18, height: 18, borderRadius: 4, flexShrink: 0,
+                    border: `${on ? 0 : 1}px solid ${on ? 'transparent' : tk.border}`,
+                    background: on ? tk.accent : 'transparent',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    {on && (
+                      <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                        <polyline points="2,5 4.2,7.2 8,2.5" stroke="#fff" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                      </svg>
+                    )}
+                  </div>
+                  <span style={{ fontSize: 14, color: tk.textPrimary, fontFamily: "'Inter', sans-serif" }}>{a}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      <div style={{ marginTop: 32 }}>
+        <PrimaryBtn mode={mode}>Continue</PrimaryBtn>
+      </div>
+    </Shell>
+  );
+}
+
+/* ═══════════════════════════════════════
+   SCREEN 4 — Looking for
+═══════════════════════════════════════ */
+function Screen4({ mode }) {
+  const tk = TK[mode];
+  const [gender, setGender] = React.useState('Anyone');
+  const [professions, setProfessions] = React.useState(['Tech', 'Consulting']);
+  const [smoking, setSmoking] = React.useState(false);
+  const [food, setFood] = React.useState('Non-veg ok');
+  const [schedule, setSchedule] = React.useState('Mostly office');
+
+  return (
+    <Shell mode={mode} progress={60}>
+      <div style={{ paddingTop: 20 }}><BackArrow mode={mode} /></div>
+      <div style={{ marginTop: 20, display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <FHead mode={mode}>Who are you looking for?</FHead>
+        <Subhead mode={mode}>Help us match you with the right flatmates.</Subhead>
+      </div>
+
+      <div style={{ marginTop: 28, display: 'flex', flexDirection: 'column', gap: 24 }}>
+        <PillRow label="Preferred gender" options={['Women', 'Men', 'Anyone']} value={gender} onChange={setGender} mode={mode} />
+        <PillRow
+          label="Preferred profession (optional)"
+          options={['Tech', 'Consulting', 'Finance', 'Marketing', 'Design', 'Healthcare', 'Other']}
+          value={professions}
+          onChange={setProfessions}
+          mode={mode}
+          multi={true}
+        />
+
+        {/* Lifestyle */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+          <Label mode={mode}>Lifestyle preferences</Label>
+          <div style={{
+            marginTop: 12,
+            background: tk.surface,
+            border: `1px solid ${tk.border}`,
+            borderRadius: 12,
+            overflow: 'hidden',
+          }}>
+            <div style={{ padding: '14px 16px', borderBottom: `1px solid ${tk.border}` }}>
+              <Toggle label="Smoking allowed" value={smoking} onChange={setSmoking} mode={mode} />
+            </div>
+            <div style={{ padding: '14px 16px', borderBottom: `1px solid ${tk.border}` }}>
+              <PillRow options={['Pure veg', 'Eggetarian', 'Non-veg ok']} value={food} onChange={setFood} mode={mode} label="Food preference" />
+            </div>
+            <div style={{ padding: '14px 16px' }}>
+              <PillRow options={['Mostly home', 'Mostly office', 'Flexible']} value={schedule} onChange={setSchedule} mode={mode} label="Work schedule" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style={{ marginTop: 'auto', paddingTop: 32 }}>
+        <PrimaryBtn mode={mode}>Continue</PrimaryBtn>
+      </div>
+    </Shell>
+  );
+}
+
+/* ═══════════════════════════════════════
+   SCREEN 5 — Review & publish
+═══════════════════════════════════════ */
+function ListingPreviewCard({ mode }) {
+  const tk = TK[mode];
+
+  const tags = ['Non-veg ok', 'No smoking', 'Mostly office'];
+
+  return (
+    <div style={{
+      background: tk.surface,
+      border: `1px solid ${tk.border}`,
+      borderRadius: 12,
+      overflow: 'hidden',
+    }}>
+      {/* Cover photo placeholder */}
+      <div style={{
+        height: 180,
+        background: mode === 'dark'
+          ? 'repeating-linear-gradient(135deg, #1B2A28 0px, #1B2A28 12px, #1E2E2C 12px, #1E2E2C 24px)'
+          : 'repeating-linear-gradient(135deg, #F0ECE6 0px, #F0ECE6 12px, #EDE8E0 12px, #EDE8E0 24px)',
+        position: 'relative',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>
+        <span style={{ fontSize: 12, color: tk.textTertiary, fontFamily: 'monospace', opacity: 0.6 }}>cover photo</span>
+        {/* BHK chip */}
+        <div style={{
+          position: 'absolute', top: 12, right: 12,
+          background: mode === 'dark' ? 'rgba(20,33,31,0.85)' : 'rgba(255,255,255,0.90)',
+          borderRadius: 20,
+          padding: '4px 10px',
+          fontSize: 12,
+          fontFamily: "'Inter', sans-serif",
+          fontWeight: 500,
+          color: tk.textPrimary,
+          backdropFilter: 'blur(4px)',
+        }}>2BHK</div>
+      </div>
+
+      <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {/* Title + locality */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+          <h3 style={{ fontFamily: "'Fraunces', serif", fontWeight: 500, fontSize: 18, letterSpacing: '-0.02em', color: tk.textPrimary, lineHeight: 1.2 }}>
+            Sunny 2BHK in DLF Phase 2
+          </h3>
+          <span style={{ fontSize: 13, color: tk.textSecondary, fontFamily: "'Inter', sans-serif" }}>DLF Phase 2, Gurgaon</span>
+        </div>
+
+        {/* Rent */}
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
+          <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 18, fontWeight: 600, color: tk.textPrimary }}>₹22,500</span>
+          <span style={{ fontSize: 13, color: tk.textSecondary, fontFamily: "'Inter', sans-serif" }}>/month · your share</span>
+        </div>
+
+        {/* Verified badge line */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <VerifiedBadge mode={mode} size={14} />
+          <span style={{ fontSize: 13, color: tk.textSecondary, fontFamily: "'Inter', sans-serif" }}>
+            Verified at <span style={{ color: tk.textPrimary, fontWeight: 500 }}>Deloitte</span>
+          </span>
+        </div>
+
+        {/* Tags */}
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          {tags.map(t => (
+            <span key={t} style={{
+              fontSize: 12,
+              fontFamily: "'Inter', sans-serif",
+              color: tk.textSecondary,
+              background: tk.accentTint,
+              border: `1px solid ${tk.border}`,
+              borderRadius: 100,
+              padding: '3px 10px',
+            }}>{t}</span>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Screen5({ mode }) {
+  const tk = TK[mode];
+  return (
+    <Shell mode={mode} progress={100}>
+      <div style={{ paddingTop: 20 }}><BackArrow mode={mode} /></div>
+      <div style={{ marginTop: 20, display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <FHead mode={mode}>Looks good?</FHead>
+        <Subhead mode={mode}>This is how flatmates will see your listing.</Subhead>
+      </div>
+
+      <div style={{ marginTop: 24 }}>
+        <ListingPreviewCard mode={mode} />
+      </div>
+
+      {/* Completeness hints */}
+      <div style={{
+        marginTop: 16,
+        background: tk.surface,
+        border: `1px solid ${tk.border}`,
+        borderRadius: 12,
+        padding: '12px 16px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 8,
+      }}>
+        {[
+          { label: 'Photos added', done: true },
+          { label: 'Description written', done: true },
+          { label: 'Locality set', done: true },
+          { label: 'Preferences filled', done: true },
+        ].map(item => (
+          <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <circle cx="8" cy="8" r="8" fill={item.done ? tk.verified : tk.border} fillOpacity={item.done ? 1 : 0.5} />
+              <polyline points="4.5,8 7,10.5 11.5,5.5" stroke="#fff" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+            </svg>
+            <span style={{ fontSize: 14, color: item.done ? tk.textPrimary : tk.textTertiary, fontFamily: "'Inter', sans-serif" }}>
+              {item.label}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ marginTop: 'auto', paddingTop: 24, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <PrimaryBtn mode={mode}>Publish listing</PrimaryBtn>
+        <div style={{ display: 'flex', justifyContent: 'center' }}>
+          <TertiaryBtn mode={mode}>Edit details</TertiaryBtn>
+        </div>
+      </div>
+    </Shell>
+  );
+}
+
+/* ═══════════════════════════════════════
+   APP
+═══════════════════════════════════════ */
+const SCREENS = [
+  { id: 'ls1', label: 'Screen 1 — Listing intro',     Component: Screen1, h: 844 },
+  { id: 'ls2', label: 'Screen 2 — Flat basics',       Component: Screen2, h: 980 },
+  { id: 'ls3', label: 'Screen 3 — Show your flat',    Component: Screen3, h: 1080 },
+  { id: 'ls4', label: 'Screen 4 — Looking for',       Component: Screen4, h: 920 },
+  { id: 'ls5', label: 'Screen 5 — Review & publish',  Component: Screen5, h: 920 },
+];
+
+function App() {
+  return (
+    <DesignCanvas>
+      {SCREENS.map(({ id, label, Component, h }) => (
+        <DCSection key={id} id={id} title={label}>
+          <DCArtboard id={`${id}-light`} label="Light mode" width={390} height={h}>
+            <Component mode="light" />
+          </DCArtboard>
+          <DCArtboard id={`${id}-dark`} label="Dark mode" width={390} height={h}>
+            <Component mode="dark" />
+          </DCArtboard>
+        </DCSection>
+      ))}
+    </DesignCanvas>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

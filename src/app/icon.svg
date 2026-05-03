@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Burrow">
+  <!-- Matches design/Burrow Logo.html AppIcon (badgeMode none): TEAL #1A5F5A, white Fraunces-style b, rx H 22% -->
+  <rect width="32" height="32" rx="7" fill="#1A5F5A" />
+  <text
+    x="16"
+    y="22.5"
+    text-anchor="middle"
+    font-family="ui-serif, Georgia, 'Times New Roman', serif"
+    font-size="16.5"
+    font-weight="500"
+    letter-spacing="-0.02em"
+    fill="#FFFFFF"
+  >b</text>
+</svg>

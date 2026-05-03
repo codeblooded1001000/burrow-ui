@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Burrow — Onboarding Flow</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+  <script type="text/babel" src="design-canvas.jsx"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #ECEAE5; font-family: 'Inter', sans-serif; }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+
+/* ═══════════════════════════════════════
+   DESIGN TOKENS
+═══════════════════════════════════════ */
+const T = {
+  light: {
+    bgBase:       '#FAF8F5',
+    surface:      '#FFFFFF',
+    border:       '#EDE8E0',
+    textPrimary:  '#1A1A1A',
+    textSecondary:'#6B6B6B',
+    textTertiary: '#A8A29A',
+    accent:       '#1A5F5A',
+    accentHover:  '#134543',
+    verified:     '#2D7A4F',
+    warning:      '#C5573D',
+    focusRing:    'rgba(26,95,90,0.30)',
+    accentTint:   'rgba(26,95,90,0.05)',
+  },
+  dark: {
+    bgBase:       '#14211F',
+    surface:      '#1B2A28',
+    border:       '#2A3936',
+    textPrimary:  '#F5F1EA',
+    textSecondary:'#B5AEA3',
+    textTertiary: '#6F6862',
+    accent:       '#5BA89E',
+    accentHover:  '#7AC0B6',
+    verified:     '#5BA876',
+    warning:      '#D87A60',
+    focusRing:    'rgba(91,168,158,0.35)',
+    accentTint:   'rgba(91,168,158,0.07)',
+  },
+};
+
+/* ═══════════════════════════════════════
+   SHARED PRIMITIVE COMPONENTS
+═══════════════════════════════════════ */
+
+/* ── Wordmark (logo) ── */
+function Wordmark({ mode = 'light', size = 32 }) {
+  const color = mode === 'dark' ? T.dark.accent : T.light.accent;
+  return (
+    <span style={{
+      fontFamily: "'Fraunces', serif",
+      fontWeight: 500,
+      fontSize: size,
+      letterSpacing: '-0.02em',
+      color,
+      lineHeight: 1,
+      display: 'block',
+    }}>burrow</span>
+  );
+}
+
+/* ── Progress bar ── */
+function ProgressBar({ progress, mode }) {
+  const tk = T[mode];
+  return (
+    <div style={{
+      width: 'calc(100% - 48px)',
+      margin: '0 auto',
+      height: 2,
+      background: tk.border,
+      borderRadius: 2,
+      overflow: 'hidden',
+    }}>
+      <div style={{
+        width: `${progress}%`,
+        height: '100%',
+        background: tk.accent,
+        borderRadius: 2,
+        transition: 'width 0.4s ease',
+      }} />
+    </div>
+  );
+}
+
+/* ── Verified badge ── */
+function VerifiedBadge({ mode, size = 14 }) {
+  const color = T[mode].verified;
+  return (
+    <svg width={size} height={size} viewBox="0 0 14 14" fill="none" style={{ flexShrink: 0 }}>
+      <circle cx="7" cy="7" r="7" fill={color} />
+      <polyline
+        points="4,7.2 6.2,9.4 10,5"
+        stroke="#fff"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
+    </svg>
+  );
+}
+
+/* ── Input field ── */
+function Input({ label, placeholder, value, onChange, type = 'text', mode, microcopy, style: extraStyle }) {
+  const tk = T[mode];
+  const [focused, setFocused] = React.useState(false);
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, ...extraStyle }}>
+      <label style={{
+        fontFamily: "'Inter', sans-serif",
+        fontSize: 14,
+        fontWeight: 400,
+        color: tk.textSecondary,
+        lineHeight: 1.4,
+      }}>{label}</label>
+      <input
+        type={type}
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        style={{
+          height: 56,
+          background: tk.surface,
+          border: `${focused ? 2 : 1}px solid ${focused ? tk.accent : tk.border}`,
+          borderRadius: 12,
+          padding: '0 16px',
+          fontSize: 16,
+          fontFamily: "'Inter', sans-serif",
+          color: tk.textPrimary,
+          outline: 'none',
+          boxShadow: focused ? `0 0 0 4px ${tk.focusRing}` : 'none',
+          transition: 'border-color 0.15s, box-shadow 0.15s',
+          '::placeholder': { color: tk.textTertiary },
+        }}
+      />
+      {microcopy && (
+        <span style={{
+          fontSize: 12,
+          color: tk.textTertiary,
+          fontFamily: "'Inter', sans-serif",
+          lineHeight: 1.5,
+        }}>{microcopy}</span>
+      )}
+    </div>
+  );
+}
+
+/* ── Primary button ── */
+function PrimaryButton({ children, disabled, mode, onClick, style: extra }) {
+  const tk = T[mode];
+  const [pressed, setPressed] = React.useState(false);
+  return (
+    <button
+      disabled={disabled}
+      onClick={onClick}
+      onMouseDown={() => setPressed(true)}
+      onMouseUp={() => setPressed(false)}
+      onMouseLeave={() => setPressed(false)}
+      style={{
+        width: '100%',
+        height: 52,
+        background: disabled
+          ? (mode === 'dark' ? '#2A3936' : '#D4CEC8')
+          : pressed ? tk.accentHover : tk.accent,
+        color: disabled
+          ? tk.textTertiary
+          : (mode === 'dark' ? T.dark.bgBase : '#FAF8F5'),
+        border: 'none',
+        borderRadius: 12,
+        fontSize: 16,
+        fontFamily: "'Inter', sans-serif",
+        fontWeight: 500,
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        transition: 'background 0.15s',
+        letterSpacing: '0',
+        ...extra,
+      }}
+    >{children}</button>
+  );
+}
+
+/* ── Secondary button ── */
+function SecondaryButton({ children, mode, onClick }) {
+  const tk = T[mode];
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        width: '100%',
+        height: 52,
+        background: 'transparent',
+        color: tk.accent,
+        border: `1px solid ${tk.accent}`,
+        borderRadius: 12,
+        fontSize: 16,
+        fontFamily: "'Inter', sans-serif",
+        fontWeight: 500,
+        cursor: 'pointer',
+      }}
+    >{children}</button>
+  );
+}
+
+/* ── Tertiary text button ── */
+function TertiaryButton({ children, mode, onClick, style: extra }) {
+  const tk = T[mode];
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        background: 'none',
+        border: 'none',
+        color: tk.accent,
+        fontSize: 14,
+        fontFamily: "'Inter', sans-serif",
+        fontWeight: 400,
+        cursor: 'pointer',
+        padding: 0,
+        textDecoration: 'none',
+        ...extra,
+      }}
+    >{children}</button>
+  );
+}
+
+/* ── Back arrow ── */
+function BackArrow({ mode }) {
+  const tk = T[mode];
+  return (
+    <div style={{
+      width: 40, height: 40,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      cursor: 'pointer',
+      marginLeft: -8,
+    }}>
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <path d="M13 16L7 10L13 4" stroke={tk.textPrimary} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    </div>
+  );
+}
+
+/* ── OTP box row ── */
+function OTPInput({ mode }) {
+  const tk = T[mode];
+  const [vals, setVals] = React.useState(['', '', '', '', '', '']);
+  const refs = Array.from({ length: 6 }, () => React.useRef(null));
+
+  const handleChange = (i, e) => {
+    const v = e.target.value.replace(/\D/g, '').slice(-1);
+    const next = [...vals];
+    next[i] = v;
+    setVals(next);
+    if (v && i < 5) refs[i + 1].current?.focus();
+  };
+  const handleKeyDown = (i, e) => {
+    if (e.key === 'Backspace' && !vals[i] && i > 0) refs[i - 1].current?.focus();
+  };
+
+  return (
+    <div style={{ display: 'flex', gap: 8 }}>
+      {vals.map((v, i) => (
+        <input
+          key={i}
+          ref={refs[i]}
+          type="text"
+          inputMode="numeric"
+          maxLength={1}
+          value={v}
+          onChange={e => handleChange(i, e)}
+          onKeyDown={e => handleKeyDown(i, e)}
+          style={{
+            flex: 1,
+            height: 56,
+            textAlign: 'center',
+            fontSize: 20,
+            fontFamily: "'Inter', sans-serif",
+            fontWeight: 500,
+            background: tk.surface,
+            border: `${v ? 2 : 1}px solid ${v ? tk.accent : tk.border}`,
+            borderRadius: 10,
+            color: tk.textPrimary,
+            outline: 'none',
+            caretColor: tk.accent,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+/* ── PIN box row ── */
+function PINInput({ label, mode }) {
+  const tk = T[mode];
+  const [vals, setVals] = React.useState(['', '', '', '', '', '']);
+  const refs = Array.from({ length: 6 }, () => React.useRef(null));
+
+  const handleChange = (i, e) => {
+    const v = e.target.value.replace(/\D/g, '').slice(-1);
+    const next = [...vals];
+    next[i] = v;
+    setVals(next);
+    if (v && i < 5) refs[i + 1].current?.focus();
+  };
+  const handleKeyDown = (i, e) => {
+    if (e.key === 'Backspace' && !vals[i] && i > 0) refs[i - 1].current?.focus();
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <label style={{ fontSize: 14, color: tk.textSecondary, fontFamily: "'Inter', sans-serif" }}>{label}</label>
+      <div style={{ display: 'flex', gap: 8 }}>
+        {vals.map((v, i) => (
+          <input
+            key={i}
+            ref={refs[i]}
+            type="password"
+            inputMode="numeric"
+            maxLength={1}
+            value={v}
+            onChange={e => handleChange(i, e)}
+            onKeyDown={e => handleKeyDown(i, e)}
+            style={{
+              flex: 1,
+              height: 56,
+              textAlign: 'center',
+              fontSize: 18,
+              fontFamily: "'Inter', sans-serif",
+              background: tk.surface,
+              border: `${v ? 2 : 1}px solid ${v ? tk.accent : tk.border}`,
+              borderRadius: 10,
+              color: tk.accent,
+              outline: 'none',
+              caretColor: tk.accent,
+            }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ── Screen shell ── */
+function PhoneShell({ mode, children, progress, showProgress = true }) {
+  const tk = T[mode];
+  return (
+    <div style={{
+      width: 390,
+      minHeight: 844,
+      background: tk.bgBase,
+      display: 'flex',
+      flexDirection: 'column',
+      position: 'relative',
+      overflow: 'hidden',
+      borderRadius: 4,
+    }}>
+      {showProgress && (
+        <div style={{ paddingTop: 16 }}>
+          <ProgressBar progress={progress} mode={mode} />
+        </div>
+      )}
+      <div style={{
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        padding: '0 24px 40px',
+      }}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+/* ── Heading + subhead ── */
+function ScreenHeading({ children, mode, size = 28, style: extra }) {
+  const tk = T[mode];
+  return (
+    <h1 style={{
+      fontFamily: "'Fraunces', serif",
+      fontWeight: 500,
+      fontSize: size,
+      letterSpacing: '-0.02em',
+      color: tk.textPrimary,
+      lineHeight: 1.2,
+      ...extra,
+    }}>{children}</h1>
+  );
+}
+
+function ScreenSubhead({ children, mode, style: extra }) {
+  const tk = T[mode];
+  return (
+    <p style={{
+      fontFamily: "'Inter', sans-serif",
+      fontWeight: 400,
+      fontSize: 16,
+      color: tk.textSecondary,
+      lineHeight: 1.55,
+      ...extra,
+    }}>{children}</p>
+  );
+}
+
+/* ── Info modal ── */
+function InfoModal({ mode, onClose }) {
+  const tk = T[mode];
+  return (
+    <div style={{
+      position: 'absolute',
+      inset: 0,
+      background: 'rgba(0,0,0,0.4)',
+      display: 'flex',
+      alignItems: 'flex-end',
+      zIndex: 100,
+    }} onClick={onClose}>
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          width: '100%',
+          background: tk.surface,
+          borderRadius: '20px 20px 0 0',
+          padding: '24px 24px 40px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 16,
+        }}
+      >
+        <div style={{ width: 40, height: 4, background: tk.border, borderRadius: 2, alignSelf: 'center' }} />
+        <h2 style={{
+          fontFamily: "'Fraunces', serif",
+          fontWeight: 500,
+          fontSize: 22,
+          letterSpacing: '-0.02em',
+          color: tk.textPrimary,
+        }}>Why corporate email?</h2>
+        <p style={{ fontSize: 15, color: tk.textSecondary, fontFamily: "'Inter', sans-serif", lineHeight: 1.6 }}>
+          A work email is the one credential most people can't fake — it's issued by your employer, not self-generated.
+        </p>
+        <p style={{ fontSize: 15, color: tk.textSecondary, fontFamily: "'Inter', sans-serif", lineHeight: 1.6 }}>
+          When you see a verified badge on Burrow, it means that person's company has been confirmed. Not self-reported.
+        </p>
+        <p style={{ fontSize: 15, color: tk.textSecondary, fontFamily: "'Inter', sans-serif", lineHeight: 1.6 }}>
+          We don't store your inbox or read your emails. We send one code, you enter it, done.
+        </p>
+        <button
+          onClick={onClose}
+          style={{
+            marginTop: 8,
+            height: 52,
+            background: tk.accent,
+            color: mode === 'dark' ? tk.bgBase : '#FAF8F5',
+            border: 'none',
+            borderRadius: 12,
+            fontSize: 16,
+            fontFamily: "'Inter', sans-serif",
+            fontWeight: 500,
+            cursor: 'pointer',
+          }}
+        >Got it</button>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════
+   SCREEN 1 — Welcome / Email entry
+═══════════════════════════════════════ */
+function Screen1({ mode }) {
+  const tk = T[mode];
+  const [email, setEmail] = React.useState('');
+  const [showModal, setShowModal] = React.useState(false);
+
+  return (
+    <PhoneShell mode={mode} showProgress={false}>
+      <div style={{ marginTop: 64, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        <Wordmark mode={mode} size={32} />
+      </div>
+
+      <div style={{ marginTop: 48, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <ScreenHeading mode={mode} size={32}>Find your flatmate, verified.</ScreenHeading>
+        <ScreenSubhead mode={mode}>
+          Every Burrow user signs up with their work email. So everyone is who they say they are.
+        </ScreenSubhead>
+      </div>
+
+      <div style={{ marginTop: 64, display: 'flex', flexDirection: 'column', gap: 24 }}>
+        <Input
+          label="Work email"
+          placeholder="your.name@company.com"
+          type="email"
+          value={email}
+          onChange={e => setEmail(e.target.value)}
+          mode={mode}
+          microcopy="Personal emails (Gmail, Yahoo) won't work — that's the point."
+        />
+        <PrimaryButton mode={mode} disabled={!email.includes('@') || email.endsWith('@')}>
+          Send verification code
+        </PrimaryButton>
+      </div>
+
+      <div style={{ marginTop: 'auto', paddingTop: 32, display: 'flex', justifyContent: 'center' }}>
+        <TertiaryButton mode={mode} onClick={() => setShowModal(true)}>
+          Why corporate email?
+        </TertiaryButton>
+      </div>
+
+      {showModal && <InfoModal mode={mode} onClose={() => setShowModal(false)} />}
+    </PhoneShell>
+  );
+}
+
+/* ═══════════════════════════════════════
+   SCREEN 2 — OTP verification
+═══════════════════════════════════════ */
+function Screen2({ mode }) {
+  const tk = T[mode];
+  const [seconds, setSeconds] = React.useState(45);
+  const email = 'priya@deloitte.com';
+
+  React.useEffect(() => {
+    if (seconds <= 0) return;
+    const t = setTimeout(() => setSeconds(s => s - 1), 1000);
+    return () => clearTimeout(t);
+  }, [seconds]);
+
+  return (
+    <PhoneShell mode={mode} progress={16}>
+      <div style={{ paddingTop: 20 }}>
+        <BackArrow mode={mode} />
+      </div>
+      <div style={{ marginTop: 24, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <ScreenHeading mode={mode}>Check your inbox</ScreenHeading>
+        <ScreenSubhead mode={mode}>
+          We sent a 6-digit code to{' '}
+          <span style={{ color: tk.textPrimary, fontWeight: 500 }}>{email}</span>
+        </ScreenSubhead>
+      </div>
+
+      <div style={{ marginTop: 32, display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <OTPInput mode={mode} />
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center' }}>
+          {seconds > 0 ? (
+            <span style={{ fontSize: 14, color: tk.textTertiary, fontFamily: "'Inter', sans-serif" }}>
+              Resend in 0:{String(seconds).padStart(2, '0')}
+            </span>
+          ) : (
+            <TertiaryButton mode={mode} onClick={() => setSeconds(45)}>
+              Resend code
+            </TertiaryButton>
+          )}
+          <TertiaryButton mode={mode}>
+            Wrong email? Change it
+          </TertiaryButton>
+        </div>
+      </div>
+    </PhoneShell>
+  );
+}
+
+/* ═══════════════════════════════════════
+   SCREEN 3 — Allowlist miss / Manual review
+═══════════════════════════════════════ */
+function Screen3({ mode }) {
+  const tk = T[mode];
+  const [company, setCompany] = React.useState('');
+
+  return (
+    <PhoneShell mode={mode} progress={33}>
+      <div style={{ paddingTop: 20 }}>
+        <BackArrow mode={mode} />
+      </div>
+      <div style={{ marginTop: 24, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <ScreenHeading mode={mode}>We don't know this company yet</ScreenHeading>
+        <ScreenSubhead mode={mode}>
+          We verify new companies manually. We'll email you within 24 hours.
+        </ScreenSubhead>
+      </div>
+
+      {/* Simple abstract teal line art */}
+      <div style={{ marginTop: 32, display: 'flex', justifyContent: 'center' }}>
+        <svg width="200" height="60" viewBox="0 0 200 60" fill="none">
+          <path d="M10 48 Q50 8 100 30 Q150 52 190 12" stroke={tk.accent} strokeWidth="1.5" strokeLinecap="round" fill="none" opacity="0.5"/>
+          <circle cx="10" cy="48" r="3" fill={tk.accent} opacity="0.5"/>
+          <circle cx="100" cy="30" r="3" fill={tk.accent} opacity="0.7"/>
+          <circle cx="190" cy="12" r="3" fill={tk.accent} opacity="0.5"/>
+          <path d="M40 52 L60 20 L80 38" stroke={tk.border} strokeWidth="1" strokeLinecap="round" fill="none"/>
+          <path d="M120 45 L140 18 L165 35 L185 10" stroke={tk.border} strokeWidth="1" strokeLinecap="round" fill="none"/>
+        </svg>
+      </div>
+
+      <div style={{ marginTop: 32, display: 'flex', flexDirection: 'column', gap: 24 }}>
+        <Input
+          label="Where do you work?"
+          placeholder="e.g. Acme Technologies Pvt Ltd"
+          value={company}
+          onChange={e => setCompany(e.target.value)}
+          mode={mode}
+        />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <PrimaryButton mode={mode} disabled={!company.trim()}>Submit for review</PrimaryButton>
+          <div style={{ display: 'flex', justifyContent: 'center' }}>
+            <TertiaryButton mode={mode}>I'll come back later</TertiaryButton>
+          </div>
+        </div>
+      </div>
+    </PhoneShell>
+  );
+}
+
+/* ═══════════════════════════════════════
+   SCREEN 4 — Set PIN
+═══════════════════════════════════════ */
+function Screen4({ mode }) {
+  const tk = T[mode];
+  return (
+    <PhoneShell mode={mode} progress={50}>
+      <div style={{ paddingTop: 20 }}>
+        <BackArrow mode={mode} />
+      </div>
+      <div style={{ marginTop: 24, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <ScreenHeading mode={mode}>Set a 6-digit PIN</ScreenHeading>
+        <ScreenSubhead mode={mode}>
+          You'll use this to sign in. Make it easy to remember, hard to guess.
+        </ScreenSubhead>
+      </div>
+
+      <div style={{ marginTop: 32, display: 'flex', flexDirection: 'column', gap: 24 }}>
+        <PINInput label="Choose PIN" mode={mode} />
+        <PINInput label="Confirm PIN" mode={mode} />
+        <span style={{
+          fontSize: 12,
+          color: tk.textTertiary,
+          fontFamily: "'Inter', sans-serif",
+          lineHeight: 1.5,
+        }}>
+          Avoid obvious sequences (123456, your birth year, repeating digits).
+        </span>
+      </div>
+
+      <div style={{ marginTop: 'auto', paddingTop: 32 }}>
+        <PrimaryButton mode={mode} disabled={true}>Continue</PrimaryButton>
+      </div>
+    </PhoneShell>
+  );
+}
+
+/* ═══════════════════════════════════════
+   SCREEN 5 — Profile basics
+═══════════════════════════════════════ */
+function Screen5({ mode }) {
+  const tk = T[mode];
+  const [gender, setGender] = React.useState(null);
+  const genders = ['Woman', 'Man', 'Prefer not to say'];
+
+  return (
+    <PhoneShell mode={mode} progress={67}>
+      <div style={{ paddingTop: 20 }}>
+        <BackArrow mode={mode} />
+      </div>
+      <div style={{ marginTop: 24, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <ScreenHeading mode={mode}>A few quick basics</ScreenHeading>
+        <ScreenSubhead mode={mode}>
+          Takes 30 seconds. You can edit anything later.
+        </ScreenSubhead>
+      </div>
+
+      <div style={{ marginTop: 24, display: 'flex', flexDirection: 'column', gap: 24 }}>
+        {/* Photo upload */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+          <div style={{
+            width: 120, height: 120,
+            borderRadius: '50%',
+            border: `2px dashed ${mode === 'dark' ? tk.accent + '99' : tk.accent}`,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 6,
+            cursor: 'pointer',
+          }}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="12" r="10" stroke={tk.accent} strokeWidth="1.5" opacity="0.5"/>
+              <path d="M12 8v8M8 12h8" stroke={tk.accent} strokeWidth="1.5" strokeLinecap="round"/>
+            </svg>
+            <span style={{ fontSize: 12, color: tk.accent, fontFamily: "'Inter', sans-serif", fontWeight: 500 }}>Add photo</span>
+          </div>
+          <TertiaryButton mode={mode} style={{ fontSize: 13 }}>Skip for now — add later</TertiaryButton>
+        </div>
+
+        <Input
+          label="Full name"
+          placeholder="Priya Sharma"
+          mode={mode}
+        />
+        <Input
+          label="Age"
+          placeholder="25"
+          type="number"
+          mode={mode}
+        />
+
+        {/* Gender pills */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <label style={{ fontSize: 14, color: tk.textSecondary, fontFamily: "'Inter', sans-serif" }}>I am</label>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {genders.map(g => {
+              const selected = gender === g;
+              return (
+                <button
+                  key={g}
+                  onClick={() => setGender(g)}
+                  style={{
+                    flex: 1,
+                    height: 40,
+                    borderRadius: 100,
+                    border: `1px solid ${selected ? tk.accent : tk.border}`,
+                    background: selected ? tk.accent : 'transparent',
+                    color: selected
+                      ? (mode === 'dark' ? tk.bgBase : '#FAF8F5')
+                      : tk.textSecondary,
+                    fontSize: 13,
+                    fontFamily: "'Inter', sans-serif",
+                    fontWeight: selected ? 500 : 400,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s',
+                    padding: '0 8px',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  }}
+                >{g}</button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      <div style={{ marginTop: 'auto', paddingTop: 32 }}>
+        <PrimaryButton mode={mode}>Continue</PrimaryButton>
+      </div>
+    </PhoneShell>
+  );
+}
+
+/* ═══════════════════════════════════════
+   SCREEN 6 — Role selection
+═══════════════════════════════════════ */
+function RoleCard({ title, subtitle, selected, onSelect, mode }) {
+  const tk = T[mode];
+  return (
+    <button
+      onClick={onSelect}
+      style={{
+        width: '100%',
+        minHeight: 112,
+        background: selected ? tk.accentTint : tk.surface,
+        border: `${selected ? 2 : 1}px solid ${selected ? tk.accent : tk.border}`,
+        borderRadius: 12,
+        padding: 16,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'flex-start',
+        gap: 6,
+        cursor: 'pointer',
+        textAlign: 'left',
+        transition: 'all 0.15s',
+      }}
+    >
+      <span style={{
+        fontFamily: "'Fraunces', serif",
+        fontWeight: 500,
+        fontSize: 18,
+        letterSpacing: '-0.02em',
+        color: selected ? tk.accent : tk.textPrimary,
+        lineHeight: 1.2,
+      }}>{title}</span>
+      <span style={{
+        fontFamily: "'Inter', sans-serif",
+        fontWeight: 400,
+        fontSize: 14,
+        color: tk.textSecondary,
+        lineHeight: 1.5,
+      }}>{subtitle}</span>
+    </button>
+  );
+}
+
+function Screen6({ mode }) {
+  const tk = T[mode];
+  const [selected, setSelected] = React.useState(null);
+
+  const roles = [
+    {
+      id: 'lister',
+      title: 'I have a flat',
+      subtitle: 'Looking for a flatmate to share it',
+    },
+    {
+      id: 'seeker',
+      title: "I'm looking for a flat",
+      subtitle: 'I want to find a place or join an existing one',
+    },
+    {
+      id: 'both',
+      title: "I'm flexible",
+      subtitle: 'Open to either — show me both',
+    },
+  ];
+
+  return (
+    <PhoneShell mode={mode} progress={83}>
+      <div style={{ paddingTop: 20 }}>
+        <BackArrow mode={mode} />
+      </div>
+      <div style={{ marginTop: 24, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <ScreenHeading mode={mode}>What brings you here?</ScreenHeading>
+        <ScreenSubhead mode={mode}>You can change this anytime.</ScreenSubhead>
+      </div>
+
+      <div style={{ marginTop: 32, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {roles.map(r => (
+          <RoleCard
+            key={r.id}
+            title={r.title}
+            subtitle={r.subtitle}
+            selected={selected === r.id}
+            onSelect={() => setSelected(r.id)}
+            mode={mode}
+          />
+        ))}
+      </div>
+
+      <div style={{ marginTop: 'auto', paddingTop: 32 }}>
+        <PrimaryButton mode={mode} disabled={!selected}>Continue</PrimaryButton>
+      </div>
+    </PhoneShell>
+  );
+}
+
+/* ═══════════════════════════════════════
+   MAIN APP — Design canvas
+═══════════════════════════════════════ */
+const SCREENS = [
+  { id: 's1', label: 'Screen 1 — Welcome',          Component: Screen1, progress: 0 },
+  { id: 's2', label: 'Screen 2 — OTP verification', Component: Screen2, progress: 16 },
+  { id: 's3', label: 'Screen 3 — Manual review',    Component: Screen3, progress: 33 },
+  { id: 's4', label: 'Screen 4 — Set PIN',          Component: Screen4, progress: 50 },
+  { id: 's5', label: 'Screen 5 — Profile basics',   Component: Screen5, progress: 67 },
+  { id: 's6', label: 'Screen 6 — Role selection',   Component: Screen6, progress: 83 },
+];
+
+function App() {
+  return (
+    <DesignCanvas>
+      {SCREENS.map(({ id, label, Component }, idx) => (
+        <DCSection key={id} id={id} title={label}>
+          <DCArtboard
+            id={`${id}-light`}
+            label="Light mode"
+            width={390}
+            height={844}
+          >
+            <Component mode="light" />
+          </DCArtboard>
+          <DCArtboard
+            id={`${id}-dark`}
+            label="Dark mode"
+            width={390}
+            height={844}
+          >
+            <Component mode="dark" />
+          </DCArtboard>
+        </DCSection>
+      ))}
+    </DesignCanvas>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

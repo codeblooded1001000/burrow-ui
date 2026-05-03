@@ -1,0 +1,35 @@
+# dependencies
+node_modules
+.pnpm-store
+
+# next
+.next
+out
+
+# env
+.env
+.env.local
+.env.*.local
+
+# debug
+npm-debug.log*
+pnpm-debug.log*
+
+# IDE
+.idea
+.vscode
+*.swp
+
+# testing
+coverage
+playwright-report
+test-results
+
+# misc
+.DS_Store
+*.tsbuildinfo
+
+# Symlinks to sibling API repo (not tracked)
+API_CONTRACT.md
+00_BURROW_MASTER_SPEC.md
+BURROW_MASTER_SPEC.md

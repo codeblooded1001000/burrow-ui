@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Burrow — Safety & Settings</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+  <script type="text/babel" src="design-canvas.jsx"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #ECEAE5; font-family: 'Inter', sans-serif; }
+    .bsy { overflow-y: auto; scrollbar-width: none; }
+    .bsy::-webkit-scrollbar { display: none; }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+
+/* ═══ TOKENS ═══ */
+const TK = {
+  light: {
+    bgBase:'#FAF8F5', surface:'#FFFFFF', border:'#EDE8E0',
+    textPrimary:'#1A1A1A', textSecondary:'#6B6B6B', textTertiary:'#A8A29A',
+    accent:'#1A5F5A', accentHover:'#134543', verified:'#2D7A4F', warning:'#C5573D',
+    focusRing:'rgba(26,95,90,0.28)', accentTint:'rgba(26,95,90,0.06)',
+    accentTint2:'rgba(26,95,90,0.12)', warningTint:'rgba(197,87,61,0.07)',
+  },
+  dark: {
+    bgBase:'#14211F', surface:'#1B2A28', border:'#2A3936',
+    textPrimary:'#F5F1EA', textSecondary:'#B5AEA3', textTertiary:'#6F6862',
+    accent:'#5BA89E', accentHover:'#7AC0B6', verified:'#5BA876', warning:'#D87A60',
+    focusRing:'rgba(91,168,158,0.32)', accentTint:'rgba(91,168,158,0.07)',
+    accentTint2:'rgba(91,168,158,0.14)', warningTint:'rgba(216,122,96,0.08)',
+  },
+};
+
+/* ═══ PRIMITIVES ═══ */
+function VerifiedBadge({ mode, size=14 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 14 14" fill="none" style={{ flexShrink:0 }}>
+      <circle cx="7" cy="7" r="7" fill={TK[mode].verified}/>
+      <polyline points="4,7.2 6.2,9.4 10,5" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+    </svg>
+  );
+}
+
+function BackArrow({ mode }) {
+  return (
+    <div style={{ width:40, height:40, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', marginLeft:-8 }}>
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <path d="M13 16L7 10L13 4" stroke={TK[mode].textPrimary} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    </div>
+  );
+}
+
+function FHead({ children, mode, size=28, style:x }) {
+  return <h1 style={{ fontFamily:"'Fraunces',serif", fontWeight:500, fontSize:size,
+    letterSpacing:'-0.02em', color:TK[mode].textPrimary, lineHeight:1.2, ...x }}>{children}</h1>;
+}
+
+function Subhead({ children, mode, style:x }) {
+  return <p style={{ fontFamily:"'Inter',sans-serif", fontWeight:400, fontSize:16,
+    color:TK[mode].textSecondary, lineHeight:1.55, ...x }}>{children}</p>;
+}
+
+function Lbl({ children, mode }) {
+  return <span style={{ fontFamily:"'Inter',sans-serif", fontSize:14, color:TK[mode].textSecondary }}>{children}</span>;
+}
+
+function SectionLabel({ children, mode }) {
+  return (
+    <span style={{ fontFamily:"'Inter',sans-serif", fontSize:11, fontWeight:600,
+      color:TK[mode].textTertiary, letterSpacing:'0.07em', textTransform:'uppercase' }}>
+      {children}
+    </span>
+  );
+}
+
+function Divider({ mode, style:x }) {
+  return <div style={{ height:1, background:TK[mode].border, ...x }}/>;
+}
+
+function Toggle({ label, value, onChange, mode, sublabel }) {
+  const tk = TK[mode];
+  return (
+    <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:16, paddingTop:2, paddingBottom:2 }}>
+      <div style={{ display:'flex', flexDirection:'column', gap:2 }}>
+        <span style={{ fontSize:15, color:tk.textPrimary, fontFamily:"'Inter',sans-serif" }}>{label}</span>
+        {sublabel && <span style={{ fontSize:12, color:tk.textTertiary, fontFamily:"'Inter',sans-serif" }}>{sublabel}</span>}
+      </div>
+      <div onClick={()=>onChange&&onChange(!value)}
+        style={{ width:44, height:26, borderRadius:13,
+          background:value?tk.accent:tk.border, position:'relative',
+          cursor:'pointer', transition:'background 0.2s', flexShrink:0 }}>
+        <div style={{ position:'absolute', top:3, left:value?21:3, width:20, height:20,
+          borderRadius:'50%', background:'#fff', transition:'left 0.2s',
+          boxShadow:'0 1px 4px rgba(0,0,0,0.18)' }}/>
+      </div>
+    </div>
+  );
+}
+
+function InputField({ label, placeholder, mode, value, prefix, type='text', microcopy }) {
+  const tk = TK[mode];
+  const [focused, setFocused] = React.useState(false);
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+      {label && <Lbl mode={mode}>{label}</Lbl>}
+      <div style={{ position:'relative' }}>
+        {prefix && <span style={{ position:'absolute', left:16, top:'50%', transform:'translateY(-50%)',
+          fontSize:16, color:tk.textSecondary, fontFamily:"'Inter',sans-serif", pointerEvents:'none' }}>{prefix}</span>}
+        <input type={type} defaultValue={value} placeholder={placeholder}
+          onFocus={()=>setFocused(true)} onBlur={()=>setFocused(false)}
+          style={{ width:'100%', height:56, background:tk.surface,
+            border:`${focused?2:1}px solid ${focused?tk.accent:tk.border}`,
+            borderRadius:12, padding:`0 16px 0 ${prefix?32:16}px`,
+            fontSize:16, fontFamily:"'Inter',sans-serif", color:tk.textPrimary,
+            outline:'none', boxShadow:focused?`0 0 0 4px ${tk.focusRing}`:'none',
+            transition:'border-color 0.15s, box-shadow 0.15s' }}/>
+      </div>
+      {microcopy && <span style={{ fontSize:12, color:tk.textTertiary, fontFamily:"'Inter',sans-serif", lineHeight:1.5 }}>{microcopy}</span>}
+    </div>
+  );
+}
+
+function TextArea({ label, placeholder, mode, rows=4 }) {
+  const tk = TK[mode];
+  const [focused, setFocused] = React.useState(false);
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+      {label && <Lbl mode={mode}>{label}</Lbl>}
+      <textarea placeholder={placeholder} rows={rows}
+        onFocus={()=>setFocused(true)} onBlur={()=>setFocused(false)}
+        style={{ background:tk.surface, border:`${focused?2:1}px solid ${focused?tk.accent:tk.border}`,
+          borderRadius:12, padding:14, fontSize:15, fontFamily:"'Inter',sans-serif",
+          color:tk.textPrimary, outline:'none', resize:'none', lineHeight:1.6,
+          boxShadow:focused?`0 0 0 4px ${tk.focusRing}`:'none',
+          transition:'border-color 0.15s, box-shadow 0.15s' }}/>
+    </div>
+  );
+}
+
+function SelectField({ label, mode, options }) {
+  const tk = TK[mode];
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+      {label && <Lbl mode={mode}>{label}</Lbl>}
+      <div style={{ position:'relative' }}>
+        <select style={{ width:'100%', height:56, background:tk.surface,
+          border:`1px solid ${tk.border}`, borderRadius:12, padding:'0 40px 0 16px',
+          fontSize:16, fontFamily:"'Inter',sans-serif", color:tk.textPrimary,
+          outline:'none', appearance:'none', cursor:'pointer' }}>
+          {options.map(o=><option key={o}>{o}</option>)}
+        </select>
+        <svg style={{ position:'absolute', right:14, top:'50%', transform:'translateY(-50%)', pointerEvents:'none' }}
+          width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <path d="M4 6l4 4 4-4" stroke={tk.textTertiary} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      </div>
+    </div>
+  );
+}
+
+/* PIN input row */
+function PINInput({ label, mode }) {
+  const tk = TK[mode];
+  const [vals, setVals] = React.useState(['','','','','','']);
+  const refs = Array.from({length:6},()=>React.useRef(null));
+  const handleChange=(i,e)=>{
+    const v=e.target.value.replace(/\D/g,'').slice(-1);
+    const next=[...vals]; next[i]=v; setVals(next);
+    if(v&&i<5) refs[i+1].current?.focus();
+  };
+  const handleKeyDown=(i,e)=>{
+    if(e.key==='Backspace'&&!vals[i]&&i>0) refs[i-1].current?.focus();
+  };
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+      {label && <Lbl mode={mode}>{label}</Lbl>}
+      <div style={{ display:'flex', gap:8 }}>
+        {vals.map((v,i)=>(
+          <input key={i} ref={refs[i]} type="password" inputMode="numeric" maxLength={1}
+            value={v} onChange={e=>handleChange(i,e)} onKeyDown={e=>handleKeyDown(i,e)}
+            style={{ flex:1, height:56, textAlign:'center', fontSize:18,
+              fontFamily:"'Inter',sans-serif", background:tk.surface,
+              border:`${v?2:1}px solid ${v?tk.accent:tk.border}`, borderRadius:10,
+              color:tk.accent, outline:'none', caretColor:tk.accent }}/>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function AvatarPlaceholder({ mode, size=40, initial='P' }) {
+  const tk = TK[mode];
+  return (
+    <div style={{ width:size, height:size, borderRadius:'50%', flexShrink:0,
+      background:mode==='dark'
+        ?'repeating-linear-gradient(135deg,#1B2A28 0,#1B2A28 5px,#1E2E2C 5px,#1E2E2C 10px)'
+        :'repeating-linear-gradient(135deg,#F0ECE6 0,#F0ECE6 5px,#EDE8E0 5px,#EDE8E0 10px)',
+      border:`1px solid ${tk.border}`,
+      display:'flex', alignItems:'center', justifyContent:'center' }}>
+      <span style={{ fontSize:size*0.36, color:tk.textTertiary, fontFamily:"'Fraunces',serif", fontWeight:500 }}>{initial}</span>
+    </div>
+  );
+}
+
+function Shell({ mode, children, style:x }) {
+  const tk = TK[mode];
+  return (
+    <div style={{ width:390, minHeight:844, background:tk.bgBase,
+      display:'flex', flexDirection:'column', overflow:'hidden', borderRadius:4, ...x }}>
+      {children}
+    </div>
+  );
+}
+
+function MenuRow({ icon, label, mode, destructive, chevron=true, sublabel, onClick }) {
+  const tk = TK[mode];
+  const color = destructive ? tk.warning : tk.textPrimary;
+  return (
+    <div onClick={onClick}
+      style={{ display:'flex', alignItems:'center', gap:14, padding:'14px 24px',
+        cursor:'pointer', borderBottom:`1px solid ${tk.border}` }}>
+      {icon && (
+        <div style={{ width:36, height:36, borderRadius:9,
+          background: destructive ? tk.warningTint : tk.accentTint,
+          display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+          {icon}
+        </div>
+      )}
+      <div style={{ flex:1, display:'flex', flexDirection:'column', gap:2 }}>
+        <span style={{ fontSize:15, color, fontFamily:"'Inter',sans-serif", fontWeight:400 }}>{label}</span>
+        {sublabel && <span style={{ fontSize:12, color:tk.textTertiary, fontFamily:"'Inter',sans-serif" }}>{sublabel}</span>}
+      </div>
+      {chevron && (
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <path d="M6 4l4 4-4 4" stroke={tk.textTertiary} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      )}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════
+   S1 — Report flow
+═══════════════════════════════════════ */
+const REPORT_CATEGORIES = [
+  { id:'harassment', label:'Harassment', desc:'Unwanted messages, threats, or intimidation' },
+  { id:'fake',       label:'Fake profile', desc:'This person doesn\'t seem real or is using someone else\'s identity' },
+  { id:'scam',       label:'Scam or broker', desc:'Asking for money, deposits, or acting like an agent' },
+  { id:'behavior',   label:'Inappropriate behavior', desc:'Offensive content or conduct outside normal conversation' },
+  { id:'other',      label:'Other', desc:'Something else not listed above' },
+];
+
+function ScreenS1({ mode }) {
+  const tk = TK[mode];
+  const [selected, setSelected] = React.useState(null);
+
+  return (
+    <Shell mode={mode}>
+      <div style={{ padding:'16px 24px 0', display:'flex', alignItems:'center' }}>
+        <BackArrow mode={mode}/>
+      </div>
+      <div className="bsy" style={{ flex:1, padding:'16px 24px 40px', display:'flex', flexDirection:'column', gap:24 }}>
+        <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+          <FHead mode={mode} size={26}>Report this user</FHead>
+          <Subhead mode={mode}>We review every report within 24 hours.</Subhead>
+        </div>
+
+        {/* Category cards */}
+        <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+          {REPORT_CATEGORIES.map(cat => {
+            const sel = selected === cat.id;
+            return (
+              <div key={cat.id} onClick={() => setSelected(cat.id)}
+                style={{ background: sel ? tk.accentTint : tk.surface,
+                  border:`${sel?2:1}px solid ${sel?tk.accent:tk.border}`,
+                  borderRadius:12, padding:'14px 16px',
+                  display:'flex', alignItems:'flex-start', gap:14, cursor:'pointer',
+                  transition:'all 0.15s' }}>
+                {/* Radio circle */}
+                <div style={{ width:20, height:20, borderRadius:'50%', flexShrink:0, marginTop:1,
+                  border:`2px solid ${sel?tk.accent:tk.border}`,
+                  background: sel ? tk.accent : 'transparent',
+                  display:'flex', alignItems:'center', justifyContent:'center' }}>
+                  {sel && <div style={{ width:7, height:7, borderRadius:'50%', background:'#fff' }}/>}
+                </div>
+                <div style={{ flex:1 }}>
+                  <div style={{ fontSize:15, color:tk.textPrimary, fontFamily:"'Inter',sans-serif",
+                    fontWeight: sel ? 500 : 400, marginBottom:3 }}>{cat.label}</div>
+                  <div style={{ fontSize:13, color:tk.textSecondary, fontFamily:"'Inter',sans-serif",
+                    lineHeight:1.5 }}>{cat.desc}</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <TextArea label="Tell us more (optional)"
+          placeholder="Anything else we should know…" mode={mode} rows={3}/>
+
+        <div style={{ marginTop:'auto' }}>
+          <button disabled={!selected}
+            style={{ width:'100%', height:52,
+              background: !selected ? (mode==='dark'?'#2A3936':'#D4CEC8') : tk.warning,
+              color: !selected ? tk.textTertiary : '#FAF8F5',
+              border:'none', borderRadius:12, fontSize:16,
+              fontFamily:"'Inter',sans-serif", fontWeight:500,
+              cursor: !selected ? 'not-allowed' : 'pointer' }}>
+            Submit report
+          </button>
+        </div>
+      </div>
+    </Shell>
+  );
+}
+
+/* ═══════════════════════════════════════
+   S2 — Block confirmation modal
+═══════════════════════════════════════ */
+function ScreenS2({ mode }) {
+  const tk = TK[mode];
+  return (
+    <Shell mode={mode} style={{ alignItems:'center', justifyContent:'center',
+      background:'rgba(0,0,0,0.35)' }}>
+      <div style={{ width:342, background:tk.surface, borderRadius:20,
+        padding:28, display:'flex', flexDirection:'column', gap:20,
+        boxShadow:'0 20px 60px rgba(0,0,0,0.25)' }}>
+        {/* Warning icon */}
+        <div style={{ display:'flex', justifyContent:'center' }}>
+          <div style={{ width:52, height:52, borderRadius:'50%', background:tk.warningTint,
+            display:'flex', alignItems:'center', justifyContent:'center' }}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="12" r="10" stroke={tk.warning} strokeWidth="1.5"/>
+              <path d="M12 7v5.5" stroke={tk.warning} strokeWidth="1.8" strokeLinecap="round"/>
+              <circle cx="12" cy="16.5" r="1" fill={tk.warning}/>
+            </svg>
+          </div>
+        </div>
+        <div style={{ display:'flex', flexDirection:'column', gap:10, textAlign:'center' }}>
+          <h2 style={{ fontFamily:"'Fraunces',serif", fontWeight:500, fontSize:20,
+            letterSpacing:'-0.02em', color:tk.textPrimary, lineHeight:1.25 }}>Block Rahul?</h2>
+          <p style={{ fontSize:14, color:tk.textSecondary, fontFamily:"'Inter',sans-serif", lineHeight:1.65 }}>
+            They won't be able to message you or see your profile. You can unblock them anytime in settings.
+          </p>
+        </div>
+        <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+          <button style={{ width:'100%', height:52, background:tk.warning, color:'#FAF8F5',
+            border:'none', borderRadius:12, fontSize:16,
+            fontFamily:"'Inter',sans-serif", fontWeight:500, cursor:'pointer' }}>Block</button>
+          <button style={{ width:'100%', height:52, background:'transparent',
+            color:tk.accent, border:`1px solid ${tk.accent}`, borderRadius:12,
+            fontSize:16, fontFamily:"'Inter',sans-serif", fontWeight:500, cursor:'pointer' }}>Cancel</button>
+        </div>
+      </div>
+    </Shell>
+  );
+}
+
+/* ═══════════════════════════════════════
+   S3 — Report submitted (success)
+═══════════════════════════════════════ */
+function ScreenS3({ mode }) {
+  const tk = TK[mode];
+  return (
+    <Shell mode={mode} style={{ alignItems:'center', justifyContent:'center' }}>
+      <div style={{ display:'flex', flexDirection:'column', alignItems:'center',
+        gap:24, padding:'0 40px', textAlign:'center' }}>
+        {/* Check icon */}
+        <svg width="72" height="72" viewBox="0 0 72 72" fill="none">
+          <circle cx="36" cy="36" r="36" fill={tk.verified} fillOpacity="0.10"/>
+          <circle cx="36" cy="36" r="26" fill={tk.verified} fillOpacity="0.15"/>
+          <polyline points="22,36.5 31,45.5 50,25"
+            stroke={tk.verified} strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+        </svg>
+        <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+          <FHead mode={mode} size={24}>Report submitted</FHead>
+          <Subhead mode={mode}>We'll review within 24 hours. You won't see them again.</Subhead>
+        </div>
+        <button style={{ width:'100%', height:52, background:tk.accent,
+          color:mode==='dark'?TK.dark.bgBase:'#FAF8F5', border:'none', borderRadius:12,
+          fontSize:16, fontFamily:"'Inter',sans-serif", fontWeight:500, cursor:'pointer' }}>Done</button>
+      </div>
+    </Shell>
+  );
+}
+
+/* ═══════════════════════════════════════
+   A1 — Account home
+═══════════════════════════════════════ */
+function ListingMiniCard({ mode }) {
+  const tk = TK[mode];
+  return (
+    <div style={{ background:tk.surface, border:`1px solid ${tk.border}`,
+      borderRadius:12, overflow:'hidden', display:'flex' }}>
+      <div style={{ width:80, background:
+        mode==='dark'?'repeating-linear-gradient(135deg,#1B2A28 0,#1B2A28 8px,#1E2E2C 8px,#1E2E2C 16px)'
+        :'repeating-linear-gradient(135deg,#F0ECE6 0,#F0ECE6 8px,#EDE8E0 8px,#EDE8E0 16px)',
+        flexShrink:0 }}/>
+      <div style={{ flex:1, padding:'12px 14px', display:'flex', flexDirection:'column', gap:4 }}>
+        <span style={{ fontFamily:"'Fraunces',serif", fontWeight:500, fontSize:15,
+          color:tk.textPrimary, letterSpacing:'-0.01em' }}>Sunny 2BHK in DLF Phase 2</span>
+        <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+          <span style={{ fontSize:13, color:tk.textSecondary, fontFamily:"'Inter',sans-serif" }}>₹22,500/mo · DLF Phase 2</span>
+        </div>
+        <div style={{ marginTop:4 }}>
+          <span style={{ fontSize:11, color:tk.verified, fontFamily:"'Inter',sans-serif",
+            fontWeight:500, background:mode==='dark'?'rgba(91,184,118,0.10)':'rgba(45,122,79,0.08)',
+            padding:'2px 8px', borderRadius:100 }}>Active</span>
+        </div>
+      </div>
+      <div style={{ padding:'12px 14px', display:'flex', alignItems:'center' }}>
+        <button style={{ background:'none', border:`1px solid ${tk.border}`, borderRadius:8,
+          padding:'6px 12px', fontSize:13, color:tk.accent,
+          fontFamily:"'Inter',sans-serif", fontWeight:500, cursor:'pointer', whiteSpace:'nowrap' }}>Edit</button>
+      </div>
+    </div>
+  );
+}
+
+function ProfileMiniCard({ mode }) {
+  const tk = TK[mode];
+  return (
+    <div style={{ background:tk.surface, border:`1px solid ${tk.border}`,
+      borderRadius:12, padding:'14px 16px', display:'flex', alignItems:'center', gap:14 }}>
+      <AvatarPlaceholder mode={mode} size={48} initial="P"/>
+      <div style={{ flex:1 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:3 }}>
+          <span style={{ fontFamily:"'Fraunces',serif", fontWeight:500, fontSize:16,
+            color:tk.textPrimary, letterSpacing:'-0.01em' }}>Priya Sharma</span>
+          <VerifiedBadge mode={mode} size={13}/>
+        </div>
+        <span style={{ fontSize:13, color:tk.textSecondary, fontFamily:"'Inter',sans-serif" }}>
+          Software engineer · Blinkit
+        </span>
+      </div>
+      <button style={{ background:'none', border:`1px solid ${tk.border}`, borderRadius:8,
+        padding:'6px 12px', fontSize:13, color:tk.accent,
+        fontFamily:"'Inter',sans-serif", fontWeight:500, cursor:'pointer' }}>Edit</button>
+    </div>
+  );
+}
+
+function ScreenA1({ mode }) {
+  const tk = TK[mode];
+
+  const menuIcons = {
+    settings: (
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+        <circle cx="9" cy="9" r="3" stroke={tk.accent} strokeWidth="1.3"/>
+        <path d="M9 1v2M9 15v2M1 9h2M15 9h2M3.22 3.22l1.41 1.41M13.37 13.37l1.41 1.41M3.22 14.78l1.41-1.41M13.37 4.63l1.41-1.41"
+          stroke={tk.accent} strokeWidth="1.3" strokeLinecap="round"/>
+      </svg>
+    ),
+    blocked: (
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+        <circle cx="9" cy="9" r="7.5" stroke={tk.accent} strokeWidth="1.3"/>
+        <path d="M3.5 3.5l11 11" stroke={tk.accent} strokeWidth="1.3" strokeLinecap="round"/>
+      </svg>
+    ),
+    help: (
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+        <circle cx="9" cy="9" r="7.5" stroke={tk.accent} strokeWidth="1.3"/>
+        <path d="M6.5 6.8a2.5 2.5 0 0 1 4.9.7c0 1.5-2 2-2 3.5" stroke={tk.accent} strokeWidth="1.3" strokeLinecap="round"/>
+        <circle cx="9" cy="14" r="0.8" fill={tk.accent}/>
+      </svg>
+    ),
+    about: (
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+        <circle cx="9" cy="9" r="7.5" stroke={tk.accent} strokeWidth="1.3"/>
+        <path d="M9 8v5" stroke={tk.accent} strokeWidth="1.4" strokeLinecap="round"/>
+        <circle cx="9" cy="5.5" r="0.8" fill={tk.accent}/>
+      </svg>
+    ),
+    signout: (
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+        <path d="M7 3H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3" stroke={tk.warning} strokeWidth="1.3" strokeLinecap="round"/>
+        <path d="M12 12l3-3-3-3M7 9h8" stroke={tk.warning} strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    ),
+  };
+
+  return (
+    <Shell mode={mode}>
+      {/* Profile hero */}
+      <div style={{ padding:'28px 24px 20px', display:'flex', alignItems:'center', gap:14 }}>
+        <div style={{ position:'relative' }}>
+          <AvatarPlaceholder mode={mode} size={64} initial="P"/>
+          <div style={{ position:'absolute', bottom:0, right:0,
+            width:22, height:22, borderRadius:'50%',
+            background:tk.accent, border:`2px solid ${tk.bgBase}`,
+            display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer' }}>
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+              <path d="M1.5 8.5L8 2M6 1l3 3" stroke="#fff" strokeWidth="1.3" strokeLinecap="round"/>
+            </svg>
+          </div>
+        </div>
+        <div style={{ flex:1 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:3 }}>
+            <span style={{ fontFamily:"'Fraunces',serif", fontWeight:500, fontSize:20,
+              color:tk.textPrimary, letterSpacing:'-0.02em' }}>Priya Sharma</span>
+            <VerifiedBadge mode={mode} size={15}/>
+          </div>
+          <span style={{ fontSize:13, color:tk.textSecondary, fontFamily:"'Inter',sans-serif" }}>
+            Blinkit · Software engineer
+          </span>
+        </div>
+      </div>
+
+      <Divider mode={mode}/>
+
+      <div className="bsy" style={{ flex:1, paddingBottom:32 }}>
+        {/* My listing */}
+        <div style={{ padding:'20px 24px 16px', display:'flex', flexDirection:'column', gap:12 }}>
+          <SectionLabel mode={mode}>My listing</SectionLabel>
+          <ListingMiniCard mode={mode}/>
+        </div>
+
+        <Divider mode={mode}/>
+
+        {/* My profile */}
+        <div style={{ padding:'20px 24px 16px', display:'flex', flexDirection:'column', gap:12 }}>
+          <SectionLabel mode={mode}>My profile</SectionLabel>
+          <ProfileMiniCard mode={mode}/>
+        </div>
+
+        <Divider mode={mode}/>
+
+        {/* Menu */}
+        <div style={{ paddingTop:8 }}>
+          <MenuRow mode={mode} icon={menuIcons.settings} label="Settings" sublabel="Notifications, privacy"/>
+          <MenuRow mode={mode} icon={menuIcons.blocked} label="Blocked users" sublabel="3 blocked"/>
+          <MenuRow mode={mode} icon={menuIcons.help} label="Help" sublabel="FAQs and support"/>
+          <MenuRow mode={mode} icon={menuIcons.about} label="About Burrow" sublabel="Version 1.0.0"/>
+          <MenuRow mode={mode} icon={menuIcons.signout} label="Sign out" destructive={true} chevron={false}/>
+        </div>
+      </div>
+    </Shell>
+  );
+}
+
+/* ═══════════════════════════════════════
+   A2 — Edit profile
+═══════════════════════════════════════ */
+function ScreenA2({ mode }) {
+  const tk = TK[mode];
+  const [gender, setGender] = React.useState('Woman');
+  const [schedule, setSchedule] = React.useState('Mostly office');
+
+  return (
+    <Shell mode={mode}>
+      <div style={{ padding:'16px 24px 0', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+        <BackArrow mode={mode}/>
+        <button style={{ background:'none', border:'none', color:tk.accent,
+          fontSize:15, fontFamily:"'Inter',sans-serif", fontWeight:500, cursor:'pointer' }}>Save</button>
+      </div>
+      <div className="bsy" style={{ flex:1, padding:'16px 24px 40px', display:'flex', flexDirection:'column', gap:24 }}>
+        <FHead mode={mode} size={26}>Edit profile</FHead>
+
+        {/* Photo */}
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:8 }}>
+          <div style={{ position:'relative' }}>
+            <AvatarPlaceholder mode={mode} size={80} initial="P"/>
+            <div style={{ position:'absolute', bottom:2, right:2,
+              width:26, height:26, borderRadius:'50%', background:tk.accent,
+              border:`2px solid ${tk.bgBase}`, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer' }}>
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                <path d="M2 10L9.5 2.5M7.5 1.5L10.5 4.5" stroke="#fff" strokeWidth="1.4" strokeLinecap="round"/>
+              </svg>
+            </div>
+          </div>
+          <button style={{ background:'none', border:'none', color:tk.accent,
+            fontSize:13, fontFamily:"'Inter',sans-serif", cursor:'pointer' }}>Change photo</button>
+        </div>
+
+        <InputField label="Full name" value="Priya Sharma" mode={mode}/>
+        <InputField label="Age" value="27" type="number" mode={mode}/>
+
+        <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+          <Lbl mode={mode}>I am</Lbl>
+          <div style={{ display:'flex', gap:8 }}>
+            {['Woman','Man','Prefer not to say'].map(g=>{
+              const sel = gender===g;
+              return (
+                <button key={g} onClick={()=>setGender(g)}
+                  style={{ flex:1, height:40, borderRadius:100,
+                    border:`1px solid ${sel?tk.accent:tk.border}`,
+                    background:sel?tk.accent:'transparent',
+                    color:sel?(mode==='dark'?TK.dark.bgBase:'#FAF8F5'):tk.textSecondary,
+                    fontSize:12, fontFamily:"'Inter',sans-serif", fontWeight:sel?500:400,
+                    cursor:'pointer', transition:'all 0.15s', padding:'0 6px' }}>{g}</button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+          <Lbl mode={mode}>Short bio</Lbl>
+          <textarea rows={4} defaultValue="Into running and books. Looking for a chill flatmate near Cyber City. WFH two days a week."
+            style={{ background:tk.surface, border:`1px solid ${tk.border}`, borderRadius:12,
+              padding:14, fontSize:15, fontFamily:"'Inter',sans-serif", color:tk.textPrimary,
+              outline:'none', resize:'none', lineHeight:1.6 }}/>
+        </div>
+
+        <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+          <Lbl mode={mode}>Work schedule</Lbl>
+          <div style={{ display:'flex', gap:8 }}>
+            {['Mostly home','Mostly office','Flexible'].map(s=>{
+              const sel=schedule===s;
+              return (
+                <button key={s} onClick={()=>setSchedule(s)}
+                  style={{ flex:1, height:40, borderRadius:100,
+                    border:`1px solid ${sel?tk.accent:tk.border}`,
+                    background:sel?tk.accent:'transparent',
+                    color:sel?(mode==='dark'?TK.dark.bgBase:'#FAF8F5'):tk.textSecondary,
+                    fontSize:12, fontFamily:"'Inter',sans-serif", fontWeight:sel?500:400,
+                    cursor:'pointer', padding:'0 4px' }}>{s}</button>
+              );
+            })}
+          </div>
+        </div>
+
+        <InputField label="Phone number (optional)" placeholder="+91 98765 43210" mode={mode} type="tel"
+          microcopy="Only shared after both sides agree"/>
+
+        <button style={{ width:'100%', height:52, background:tk.accent,
+          color:mode==='dark'?TK.dark.bgBase:'#FAF8F5', border:'none', borderRadius:12,
+          fontSize:16, fontFamily:"'Inter',sans-serif", fontWeight:500, cursor:'pointer' }}>
+          Save changes
+        </button>
+      </div>
+    </Shell>
+  );
+}
+
+/* ═══════════════════════════════════════
+   A3 — Settings
+═══════════════════════════════════════ */
+function ScreenA3({ mode }) {
+  const tk = TK[mode];
+  const [notifMsg, setNotifMsg] = React.useState(true);
+  const [notifMatch, setNotifMatch] = React.useState(true);
+  const [notifDigest, setNotifDigest] = React.useState(false);
+  const [showStatus, setShowStatus] = React.useState(true);
+
+  return (
+    <Shell mode={mode}>
+      <div style={{ padding:'16px 24px 0', display:'flex', alignItems:'center' }}>
+        <BackArrow mode={mode}/>
+      </div>
+      <div className="bsy" style={{ flex:1, padding:'16px 24px 40px', display:'flex', flexDirection:'column', gap:0 }}>
+        <FHead mode={mode} size={26} style={{ marginBottom:28 }}>Settings</FHead>
+
+        {/* Notifications */}
+        <SectionLabel mode={mode}>Notifications</SectionLabel>
+        <div style={{ marginTop:12, background:tk.surface, border:`1px solid ${tk.border}`,
+          borderRadius:12, overflow:'hidden', marginBottom:28 }}>
+          <div style={{ padding:'14px 16px', borderBottom:`1px solid ${tk.border}` }}>
+            <Toggle label="New messages" mode={mode} value={notifMsg} onChange={setNotifMsg}
+              sublabel="When someone messages you"/>
+          </div>
+          <div style={{ padding:'14px 16px', borderBottom:`1px solid ${tk.border}` }}>
+            <Toggle label="New matches in your area" mode={mode} value={notifMatch} onChange={setNotifMatch}
+              sublabel="When new listings match your preferences"/>
+          </div>
+          <div style={{ padding:'14px 16px' }}>
+            <Toggle label="Weekly digest" mode={mode} value={notifDigest} onChange={setNotifDigest}
+              sublabel="A summary of activity every Monday"/>
+          </div>
+        </div>
+
+        {/* Privacy */}
+        <SectionLabel mode={mode}>Privacy</SectionLabel>
+        <div style={{ marginTop:12, background:tk.surface, border:`1px solid ${tk.border}`,
+          borderRadius:12, overflow:'hidden', marginBottom:28 }}>
+          <div style={{ padding:'14px 16px' }}>
+            <Toggle label="Show my last-active status" mode={mode} value={showStatus} onChange={setShowStatus}
+              sublabel="Others can see when you were last active"/>
+          </div>
+        </div>
+
+        {/* Data */}
+        <SectionLabel mode={mode}>Data</SectionLabel>
+        <div style={{ marginTop:12, background:tk.surface, border:`1px solid ${tk.border}`,
+          borderRadius:12, overflow:'hidden' }}>
+          <div style={{ padding:'16px', borderBottom:`1px solid ${tk.border}` }}>
+            <button style={{ background:'none', border:'none', color:tk.accent,
+              fontSize:15, fontFamily:"'Inter',sans-serif", cursor:'pointer', padding:0, textAlign:'left' }}>
+              Download my data
+            </button>
+            <p style={{ fontSize:12, color:tk.textTertiary, fontFamily:"'Inter',sans-serif",
+              marginTop:3, lineHeight:1.5 }}>Your profile, messages, and activity as a ZIP file</p>
+          </div>
+          <div style={{ padding:'16px' }}>
+            <button style={{ background:'none', border:'none', color:tk.warning,
+              fontSize:15, fontFamily:"'Inter',sans-serif", cursor:'pointer', padding:0, textAlign:'left' }}>
+              Delete my account
+            </button>
+            <p style={{ fontSize:12, color:tk.textTertiary, fontFamily:"'Inter',sans-serif",
+              marginTop:3, lineHeight:1.5 }}>Permanently removes your profile and data</p>
+          </div>
+        </div>
+      </div>
+    </Shell>
+  );
+}
+
+/* ═══════════════════════════════════════
+   A4 — Delete account
+═══════════════════════════════════════ */
+function ScreenA4({ mode }) {
+  const tk = TK[mode];
+
+  return (
+    <Shell mode={mode}>
+      <div style={{ padding:'16px 24px 0', display:'flex', alignItems:'center' }}>
+        <BackArrow mode={mode}/>
+      </div>
+      <div className="bsy" style={{ flex:1, padding:'16px 24px 40px', display:'flex', flexDirection:'column', gap:24 }}>
+        {/* Warning icon */}
+        <div style={{ display:'flex', justifyContent:'center', paddingTop:8 }}>
+          <div style={{ width:56, height:56, borderRadius:'50%', background:tk.warningTint,
+            display:'flex', alignItems:'center', justifyContent:'center' }}>
+            <svg width="26" height="26" viewBox="0 0 26 26" fill="none">
+              <path d="M13 3L2 22h22L13 3Z" stroke={tk.warning} strokeWidth="1.6" strokeLinejoin="round" fill="none"/>
+              <path d="M13 10v6" stroke={tk.warning} strokeWidth="1.8" strokeLinecap="round"/>
+              <circle cx="13" cy="19" r="1" fill={tk.warning}/>
+            </svg>
+          </div>
+        </div>
+
+        <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+          <FHead mode={mode} size={24}>Delete your Burrow account?</FHead>
+          <p style={{ fontSize:15, color:tk.textSecondary, fontFamily:"'Inter',sans-serif", lineHeight:1.65 }}>
+            Your profile, listing, and conversations will be permanently deleted within 30 days.
+            This cannot be undone.
+          </p>
+        </div>
+
+        {/* Data checklist */}
+        <div style={{ background:tk.warningTint, border:`1px solid ${tk.warning}22`,
+          borderRadius:12, padding:'14px 16px', display:'flex', flexDirection:'column', gap:8 }}>
+          {["Your profile and photos","Your listing","All conversations","Your verified email link"].map(item=>(
+            <div key={item} style={{ display:'flex', alignItems:'center', gap:10 }}>
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <circle cx="7" cy="7" r="7" fill={tk.warning} fillOpacity="0.2"/>
+                <path d="M4.5 7L6.5 9L9.5 5" stroke={tk.warning} strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+              </svg>
+              <span style={{ fontSize:13, color:tk.textSecondary, fontFamily:"'Inter',sans-serif" }}>{item}</span>
+            </div>
+          ))}
+        </div>
+
+        <SelectField label="Why are you leaving? (optional)" mode={mode}
+          options={['Select a reason','Found a flatmate','App not useful','Privacy concerns','Switching jobs / city','Other']}/>
+
+        <PINInput label="Enter your PIN to confirm" mode={mode}/>
+
+        <div style={{ display:'flex', flexDirection:'column', gap:10, marginTop:'auto' }}>
+          <button style={{ width:'100%', height:52, background:tk.warning, color:'#FAF8F5',
+            border:'none', borderRadius:12, fontSize:16,
+            fontFamily:"'Inter',sans-serif", fontWeight:500, cursor:'pointer' }}>
+            Delete permanently
+          </button>
+          <button style={{ width:'100%', height:52, background:'transparent',
+            color:tk.accent, border:`1px solid ${tk.accent}`, borderRadius:12,
+            fontSize:16, fontFamily:"'Inter',sans-serif", fontWeight:500, cursor:'pointer' }}>
+            Cancel
+          </button>
+        </div>
+      </div>
+    </Shell>
+  );
+}
+
+/* ═══════════════════════════════════════
+   P1 — Phone recovery
+═══════════════════════════════════════ */
+function ScreenP1({ mode }) {
+  const tk = TK[mode];
+  const [phone, setPhone] = React.useState('');
+
+  return (
+    <Shell mode={mode}>
+      <div style={{ padding:'16px 24px 0', display:'flex', alignItems:'center' }}>
+        <BackArrow mode={mode}/>
+      </div>
+      <div style={{ flex:1, padding:'16px 24px 40px', display:'flex', flexDirection:'column' }}>
+        {/* Icon */}
+        <div style={{ marginTop:24, display:'flex', justifyContent:'center' }}>
+          <svg width="72" height="72" viewBox="0 0 72 72" fill="none">
+            <circle cx="36" cy="36" r="36" fill={tk.accentTint}/>
+            <rect x="24" y="16" width="24" height="40" rx="4" stroke={tk.accent} strokeWidth="1.5"/>
+            <line x1="30" y1="22" x2="42" y2="22" stroke={tk.accent} strokeWidth="1.3" strokeLinecap="round"/>
+            <circle cx="36" cy="50" r="2" fill={tk.accent} fillOpacity="0.5"/>
+            {/* Key symbol */}
+            <circle cx="36" cy="36" r="5" stroke={tk.accent} strokeWidth="1.4"/>
+            <path d="M39.5 39.5l4 4" stroke={tk.accent} strokeWidth="1.4" strokeLinecap="round"/>
+          </svg>
+        </div>
+
+        <div style={{ marginTop:28, display:'flex', flexDirection:'column', gap:10 }}>
+          <FHead mode={mode} size={26}>Lost access to your work email?</FHead>
+          <Subhead mode={mode}>We'll send a code to your phone number to verify it's you.</Subhead>
+        </div>
+
+        <div style={{ marginTop:32, display:'flex', flexDirection:'column', gap:20 }}>
+          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+            <span style={{ fontSize:14, color:tk.textSecondary, fontFamily:"'Inter',sans-serif" }}>Phone number</span>
+            <div style={{ position:'relative' }}>
+              <div style={{ position:'absolute', left:16, top:'50%', transform:'translateY(-50%)',
+                display:'flex', alignItems:'center', gap:6, pointerEvents:'none' }}>
+                <span style={{ fontSize:15, color:tk.textSecondary, fontFamily:"'Inter',sans-serif" }}>+91</span>
+                <div style={{ width:1, height:18, background:tk.border }}/>
+              </div>
+              <input type="tel" placeholder="98765 43210"
+                value={phone} onChange={e=>setPhone(e.target.value)}
+                style={{ width:'100%', height:56, background:tk.surface,
+                  border:`1px solid ${tk.border}`, borderRadius:12,
+                  padding:'0 16px 0 58px', fontSize:16,
+                  fontFamily:"'Inter',sans-serif", color:tk.textPrimary, outline:'none' }}/>
+            </div>
+            <span style={{ fontSize:12, color:tk.textTertiary, fontFamily:"'Inter',sans-serif", lineHeight:1.5 }}>
+              This must be the number linked to your Burrow account.
+            </span>
+          </div>
+
+          <button disabled={phone.length < 10}
+            style={{ width:'100%', height:52,
+              background:phone.length<10?(mode==='dark'?'#2A3936':'#D4CEC8'):tk.accent,
+              color:phone.length<10?tk.textTertiary:(mode==='dark'?TK.dark.bgBase:'#FAF8F5'),
+              border:'none', borderRadius:12, fontSize:16,
+              fontFamily:"'Inter',sans-serif", fontWeight:500,
+              cursor:phone.length<10?'not-allowed':'pointer' }}>
+            Send code
+          </button>
+        </div>
+
+        <div style={{ marginTop:'auto', paddingTop:32, display:'flex', justifyContent:'center' }}>
+          <button style={{ background:'none', border:'none', color:tk.accent,
+            fontSize:14, fontFamily:"'Inter',sans-serif", cursor:'pointer' }}>
+            Contact support instead
+          </button>
+        </div>
+      </div>
+    </Shell>
+  );
+}
+
+/* ═══════════════════════════════════════
+   APP
+═══════════════════════════════════════ */
+const ALL_SCREENS = [
+  { id:'s1',  label:'S1 — Report flow',            Component: ScreenS1, h: 920 },
+  { id:'s2',  label:'S2 — Block confirmation',     Component: ScreenS2, h: 844 },
+  { id:'s3',  label:'S3 — Report submitted',       Component: ScreenS3, h: 844 },
+  { id:'a1',  label:'A1 — Account home',           Component: ScreenA1, h: 920 },
+  { id:'a2',  label:'A2 — Edit profile',           Component: ScreenA2, h: 980 },
+  { id:'a3',  label:'A3 — Settings',               Component: ScreenA3, h: 920 },
+  { id:'a4',  label:'A4 — Delete account',         Component: ScreenA4, h: 960 },
+  { id:'p1',  label:'P1 — Phone recovery',         Component: ScreenP1, h: 844 },
+];
+
+function App() {
+  return (
+    <DesignCanvas>
+      {ALL_SCREENS.map(({ id, label, Component, h }) => (
+        <DCSection key={id} id={id} title={label}>
+          <DCArtboard id={`${id}-light`} label="Light mode" width={390} height={h}>
+            <Component mode="light"/>
+          </DCArtboard>
+          <DCArtboard id={`${id}-dark`} label="Dark mode" width={390} height={h}>
+            <Component mode="dark"/>
+          </DCArtboard>
+        </DCSection>
+      ))}
+    </DesignCanvas>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>

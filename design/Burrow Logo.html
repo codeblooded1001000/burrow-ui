@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Burrow — Logo System</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,300;1,9..144,400;1,9..144,500&display=swap" rel="stylesheet" />
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+  <script type="text/babel" src="design-canvas.jsx"></script>
+  <script type="text/babel" src="tweaks-panel.jsx"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #ECEAE5; font-family: sans-serif; }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+
+/* ─── Brand tokens ─── */
+const TEAL        = '#1A5F5A';
+const CREAM       = '#FAF8F5';
+const GREEN       = '#2D7A4F';
+const WHITE       = '#FFFFFF';
+const CANVAS_BG   = '#ECEAE5';
+
+/* ─────────────────────────────────────────────
+   BADGE MODES
+   "separate" — circle+tick to the right of wordmark (original)
+   "merged"   — tick drawn inside the bowl of the "b" letterform via SVG
+   "none"     — clean wordmark only
+   ───────────────────────────────────────────── */
+
+/* ── Separate badge (circle + tick) ── */
+function SeparateBadge({ capHeight, onTeal = false }) {
+  const size     = Math.round(capHeight * 0.60);
+  const r        = size / 2;
+  const strokeW  = Math.max(1.4, size * 0.1);
+  const border   = onTeal ? 'rgba(255,255,255,0.5)' : TEAL;
+
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}
+      fill="none" style={{ display: 'block', flexShrink: 0 }}>
+      <circle cx={r} cy={r} r={r - 0.8} fill={WHITE} stroke={border} strokeWidth={1.2} />
+      <polyline
+        points={`${size*0.27},${size*0.52} ${size*0.44},${size*0.68} ${size*0.73},${size*0.31}`}
+        stroke={GREEN} strokeWidth={strokeW}
+        strokeLinecap="round" strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+/* ── Merged: entire "burrow" wordmark as SVG with tick embedded in "b" counter ──
+   Canvas-measured Fraunces 500 at 100px:
+   advance "b" = 50px, ascent=98, descent=26, em=124
+   Counter: x=17–50, y=50–95 (from canvas top, baseline at y=98)
+   Full word advances measured at 100px:
+   b=50, u=56, r=47, r=47, o=55, w=73 → total≈328
+   We render text as SVG <text> and overlay <polyline> for the tick.
+*/
+function MergedWordmark({ fontSize, color }) {
+  const tkColor = color === WHITE ? '#FFFFFF' : GREEN;
+  const tkSw    = Math.max(1.5, fontSize * 0.065);
+
+  // Scale factor from measured 100px
+  const s = fontSize / 100;
+
+  // At 100px: advance widths (approximate for Fraunces 500, tight kerning)
+  const totalW = 328 * s;
+  // SVG height = fontBoundingBox total = 124px at 100px
+  const totalH = fontSize * 1.24;
+  const baseline = 98 * s; // y position of baseline in SVG
+
+  // Counter of "b" at 100px: center=(33.5, 72.5), spans x=17–50, y=50–95
+  // Tick fits inside with padding
+  const cMinX = 17*s, cMaxX = 50*s;
+  const cMinY = 50*s, cMaxY = 95*s;
+  const cCX = (cMinX+cMaxX)/2, cCY = (cMinY+cMaxY)/2;
+  const cRX = (cMaxX-cMinX)/2, cRY = (cMaxY-cMinY)/2;
+  const pad = 0.68;
+
+  const p1 = [cCX - cRX*pad, cCY + cRY*0.08];
+  const p2 = [cCX - cRX*0.05, cCY + cRY*pad];
+  const p3 = [cCX + cRX*pad, cCY - cRY*pad];
+
+  return (
+    <svg
+      width={totalW}
+      height={totalH}
+      viewBox={`0 0 ${totalW} ${totalH}`}
+      style={{ display: 'block', overflow: 'visible' }}
+    >
+      <text
+        x={0}
+        y={baseline}
+        fontFamily="'Fraunces', serif"
+        fontWeight={500}
+        fontSize={fontSize}
+        letterSpacing={fontSize * -0.02}
+        fill={color}
+        style={{ fontVariantLigatures: 'none' }}
+      >burrow</text>
+      {/* Tick inside the "b" counter */}
+      <polyline
+        points={`${p1[0]},${p1[1]} ${p2[0]},${p2[1]} ${p3[0]},${p3[1]}`}
+        stroke={tkColor}
+        strokeWidth={tkSw}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
+    </svg>
+  );
+}
+
+/* ── Full wordmark (text-based or merged-b) ── */
+function Wordmark({ fontSize = 64, color = TEAL, badgeMode = 'separate', onTeal = false }) {
+  const ls = '-0.02em';
+  const capHeight = fontSize * 0.68;
+  const xHeight   = fontSize * 0.52;
+  const badgeSize = Math.round(capHeight * 0.60);
+  const gap       = Math.round(fontSize * 0.26);
+
+  const textStyle = {
+    fontFamily: "'Fraunces', serif",
+    fontWeight: 500,
+    fontSize,
+    letterSpacing: ls,
+    color,
+    lineHeight: 1,
+    display: 'block',
+    fontVariantLigatures: 'none',
+  };
+
+  if (badgeMode === 'none') {
+    return <span style={textStyle}>burrow</span>;
+  }
+
+  if (badgeMode === 'merged') {
+    return <MergedWordmark fontSize={fontSize} color={color} />;
+  }
+
+  // 'separate' — original behaviour
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap }}>
+      <span style={textStyle}>burrow</span>
+      <div style={{ marginBottom: `${xHeight * 0.5 - badgeSize * 0.5}px`, flexShrink: 0 }}>
+        <SeparateBadge capHeight={capHeight} onTeal={onTeal} />
+      </div>
+    </div>
+  );
+}
+
+/* ─── Horizontal Lockup ─── */
+function HorizontalLockup({ scale = 1, badgeMode, inverse = false }) {
+  const fontSize = 72 * scale;
+  const bg   = inverse ? TEAL  : CREAM;
+  const color = inverse ? WHITE : TEAL;
+  return (
+    <div style={{
+      display: 'inline-flex', alignItems: 'center',
+      background: bg,
+      padding: `${48*scale}px ${56*scale}px`,
+      borderRadius: 4,
+    }}>
+      <Wordmark fontSize={fontSize} color={color} badgeMode={badgeMode} onTeal={inverse} />
+    </div>
+  );
+}
+
+/* ─── App Icon ─── */
+function AppIcon({ size = 200, badgeMode }) {
+  const cornerR  = size * 0.22;
+  const fontSize = size * 0.50;
+  const capHeight = fontSize * 0.68;
+  const badgeSize = Math.round(capHeight * 0.60);
+  const gap = size * 0.06;
+
+  if (badgeMode === 'none') {
+    return (
+      <div style={{
+        width: size, height: size, background: TEAL,
+        borderRadius: cornerR,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>
+        <span style={{
+          fontFamily: "'Fraunces', serif", fontWeight: 500,
+          fontSize, letterSpacing: '-0.02em', color: WHITE, lineHeight: 1,
+        }}>b</span>
+      </div>
+    );
+  }
+
+  if (badgeMode === 'merged') {
+    // SVG "b" with embedded tick for icon
+    const fs = fontSize;
+    const s = fs / 100;
+    const svgW = 52*s, svgH = fs * 1.24;
+    const baseline = 98*s;
+    const tkColor = '#FFFFFF';
+    const tkSw = Math.max(1.5, fs * 0.065);
+    const cMinX=17*s, cMaxX=50*s, cMinY=50*s, cMaxY=95*s;
+    const cCX=(cMinX+cMaxX)/2, cCY=(cMinY+cMaxY)/2;
+    const cRX=(cMaxX-cMinX)/2, cRY=(cMaxY-cMinY)/2;
+    const pad=0.68;
+    const p1=[cCX-cRX*pad, cCY+cRY*0.08];
+    const p2=[cCX-cRX*0.05, cCY+cRY*pad];
+    const p3=[cCX+cRX*pad, cCY-cRY*pad];
+    return (
+      <div style={{ width:size, height:size, background:TEAL, borderRadius:cornerR,
+        display:'flex', alignItems:'center', justifyContent:'center' }}>
+        <svg width={svgW} height={svgH} viewBox={`0 0 ${svgW} ${svgH}`} style={{overflow:'visible'}}>
+          <text x={0} y={baseline} fontFamily="'Fraunces', serif" fontWeight={500}
+            fontSize={fs} fill={WHITE} style={{fontVariantLigatures:'none'}}>b</text>
+          <polyline points={`${p1[0]},${p1[1]} ${p2[0]},${p2[1]} ${p3[0]},${p3[1]}`}
+            stroke={tkColor} strokeWidth={tkSw} strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+        </svg>
+      </div>
+    );
+  }
+
+  // separate badge
+  return (
+    <div style={{
+      width: size, height: size, background: TEAL,
+      borderRadius: cornerR,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+    }}>
+      <div style={{ position: 'relative' }}>
+        <span style={{
+          fontFamily: "'Fraunces', serif", fontWeight: 500,
+          fontSize, letterSpacing: '-0.02em', color: WHITE,
+          lineHeight: 1, display: 'block',
+        }}>b</span>
+        <div style={{
+          position: 'absolute',
+          top: fontSize * 0.01,
+          right: -badgeSize * 0.55,
+        }}>
+          <SeparateBadge capHeight={capHeight} onTeal={true} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Main App ─── */
+function App() {
+  const [tweaks, setTweak] = useTweaks(/*EDITMODE-BEGIN*/{
+    "badgeMode": "none"
+  }/*EDITMODE-END*/);
+
+  const bm = tweaks.badgeMode;
+
+  return (
+    <>
+      <DesignCanvas>
+        <DCSection id="lockups" title="Burrow Logo System">
+
+          <DCArtboard id="horizontal" label="01 — Horizontal lockup" width={620} height={200}>
+            <div style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', background: CREAM }}>
+              <HorizontalLockup scale={0.78} badgeMode={bm} />
+            </div>
+          </DCArtboard>
+
+          <DCArtboard id="appicon" label="02 — App icon mark" width={320} height={320}>
+            <div style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', background: CANVAS_BG }}>
+              <AppIcon size={200} badgeMode={bm} />
+            </div>
+          </DCArtboard>
+
+          <DCArtboard id="inverse" label="03 — Inverse (white on teal)" width={620} height={200}>
+            <div style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', background: TEAL }}>
+              <HorizontalLockup scale={0.78} badgeMode={bm} inverse={true} />
+            </div>
+          </DCArtboard>
+
+        </DCSection>
+
+        <DCSection id="sizing" title="Scale study">
+          <DCArtboard id="sm-lockup" label="Small — 32px" width={380} height={120}>
+            <div style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', background: CREAM }}>
+              <HorizontalLockup scale={0.44} badgeMode={bm} />
+            </div>
+          </DCArtboard>
+
+          <DCArtboard id="lg-lockup" label="Large — 96px" width={820} height={240}>
+            <div style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', background: CREAM }}>
+              <HorizontalLockup scale={1.02} badgeMode={bm} />
+            </div>
+          </DCArtboard>
+        </DCSection>
+
+        <DCSection id="icons" title="App icon sizes">
+          <DCArtboard id="icon-xl" label="1024px (App Store)" width={340} height={340}>
+            <div style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', background: CANVAS_BG }}>
+              <AppIcon size={260} badgeMode={bm} />
+            </div>
+          </DCArtboard>
+
+          <DCArtboard id="icon-md" label="60px (Home Screen)" width={200} height={200}>
+            <div style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', background: CANVAS_BG }}>
+              <AppIcon size={120} badgeMode={bm} />
+            </div>
+          </DCArtboard>
+
+          <DCArtboard id="icon-sm" label="29px (Settings)" width={140} height={140}>
+            <div style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', background: CANVAS_BG }}>
+              <AppIcon size={80} badgeMode={bm} />
+            </div>
+          </DCArtboard>
+        </DCSection>
+      </DesignCanvas>
+
+      {/* Tweaks panel */}
+      <TweaksPanel>
+        <TweakSection label="Verification mark">
+          <TweakRadio
+            label="Badge style"
+            value={bm}
+            options={[
+              { value: 'separate', label: 'Separate' },
+              { value: 'merged',   label: 'In "b"' },
+              { value: 'none',     label: 'None' },
+            ]}
+            onChange={v => setTweak('badgeMode', v)}
+          />
+        </TweakSection>
+      </TweaksPanel>
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

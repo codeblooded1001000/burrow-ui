@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Burrow — Detail & Messaging</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+  <script type="text/babel" src="design-canvas.jsx"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #ECEAE5; font-family: 'Inter', sans-serif; }
+    .bscroll-y { overflow-y: auto; scrollbar-width: none; }
+    .bscroll-y::-webkit-scrollbar { display: none; }
+    .bscroll-x { overflow-x: auto; scrollbar-width: none; }
+    .bscroll-x::-webkit-scrollbar { display: none; }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+
+/* ═══ TOKENS ═══ */
+const TK = {
+  light: {
+    bgBase:'#FAF8F5', surface:'#FFFFFF', border:'#EDE8E0',
+    textPrimary:'#1A1A1A', textSecondary:'#6B6B6B', textTertiary:'#A8A29A',
+    accent:'#1A5F5A', accentHover:'#134543', verified:'#2D7A4F', warning:'#C5573D',
+    focusRing:'rgba(26,95,90,0.28)', accentTint:'rgba(26,95,90,0.06)',
+    accentTint2:'rgba(26,95,90,0.12)', bubbleMe:'#1A5F5A', bubbleThem:'#FFFFFF',
+  },
+  dark: {
+    bgBase:'#14211F', surface:'#1B2A28', border:'#2A3936',
+    textPrimary:'#F5F1EA', textSecondary:'#B5AEA3', textTertiary:'#6F6862',
+    accent:'#5BA89E', accentHover:'#7AC0B6', verified:'#5BA876', warning:'#D87A60',
+    focusRing:'rgba(91,168,158,0.32)', accentTint:'rgba(91,168,158,0.07)',
+    accentTint2:'rgba(91,168,158,0.14)', bubbleMe:'#2A4A47', bubbleThem:'#1B2A28',
+  },
+};
+
+/* ═══ SHARED PRIMITIVES ═══ */
+function VerifiedBadge({ mode, size=14 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 14 14" fill="none" style={{ flexShrink:0 }}>
+      <circle cx="7" cy="7" r="7" fill={TK[mode].verified}/>
+      <polyline points="4,7.2 6.2,9.4 10,5" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+    </svg>
+  );
+}
+
+function PrimaryBtn({ children, mode, style:x, onClick }) {
+  const tk = TK[mode];
+  return (
+    <button onClick={onClick} style={{ height:52, background:tk.accent,
+      color:mode==='dark'?TK.dark.bgBase:'#FAF8F5', border:'none', borderRadius:12,
+      fontSize:16, fontFamily:"'Inter',sans-serif", fontWeight:500, cursor:'pointer',
+      flex:1, ...x }}>{children}</button>
+  );
+}
+
+function SecondaryBtn({ children, mode, onClick, style:x }) {
+  const tk = TK[mode];
+  return (
+    <button onClick={onClick} style={{ height:52, background:'transparent',
+      color:tk.accent, border:`1px solid ${tk.accent}`, borderRadius:12,
+      fontSize:16, fontFamily:"'Inter',sans-serif", fontWeight:500, cursor:'pointer',
+      flex:1, ...x }}>{children}</button>
+  );
+}
+
+function TertiaryBtn({ children, mode, onClick, style:x }) {
+  return (
+    <button onClick={onClick} style={{ background:'none', border:'none', color:TK[mode].accent,
+      fontSize:14, fontFamily:"'Inter',sans-serif", cursor:'pointer', padding:0, ...x }}>{children}</button>
+  );
+}
+
+function SectionHead({ children, mode }) {
+  return (
+    <h3 style={{ fontFamily:"'Fraunces',serif", fontWeight:500, fontSize:18,
+      letterSpacing:'-0.02em', color:TK[mode].textPrimary, lineHeight:1.2 }}>{children}</h3>
+  );
+}
+
+function Divider({ mode }) {
+  return <div style={{ height:1, background:TK[mode].border, margin:'0 -24px' }}/>;
+}
+
+function BackArrow({ mode }) {
+  return (
+    <div style={{ width:40, height:40, display:'flex', alignItems:'center', justifyContent:'center',
+      cursor:'pointer', marginLeft:-8 }}>
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <path d="M13 16L7 10L13 4" stroke={TK[mode].textPrimary} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    </div>
+  );
+}
+
+function KebabIcon({ mode }) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+      <circle cx="10" cy="5" r="1.5" fill={TK[mode].textSecondary}/>
+      <circle cx="10" cy="10" r="1.5" fill={TK[mode].textSecondary}/>
+      <circle cx="10" cy="15" r="1.5" fill={TK[mode].textSecondary}/>
+    </svg>
+  );
+}
+
+/* Avatar placeholder */
+function AvatarPlaceholder({ mode, size=40, initial='R' }) {
+  const tk = TK[mode];
+  return (
+    <div style={{ width:size, height:size, borderRadius:'50%', flexShrink:0,
+      background:mode==='dark'?'repeating-linear-gradient(135deg,#1B2A28 0,#1B2A28 5px,#1E2E2C 5px,#1E2E2C 10px)'
+      :'repeating-linear-gradient(135deg,#F0ECE6 0,#F0ECE6 5px,#EDE8E0 5px,#EDE8E0 10px)',
+      border:`1px solid ${tk.border}`,
+      display:'flex', alignItems:'center', justifyContent:'center' }}>
+      <span style={{ fontSize:size*0.35, color:tk.textTertiary, fontFamily:"'Fraunces',serif", fontWeight:500 }}>{initial}</span>
+    </div>
+  );
+}
+
+/* Strip / photo placeholder */
+function PhotoStrip({ mode, height=320, label='cover photo' }) {
+  const tk = TK[mode];
+  return (
+    <div style={{ width:'100%', height,
+      background:mode==='dark'
+        ?'repeating-linear-gradient(135deg,#1B2A28 0,#1B2A28 18px,#1E2E2C 18px,#1E2E2C 36px)'
+        :'repeating-linear-gradient(135deg,#F0ECE6 0,#F0ECE6 18px,#EDE8E0 18px,#EDE8E0 36px)',
+      display:'flex', alignItems:'center', justifyContent:'center' }}>
+      <span style={{ fontSize:11, color:tk.textTertiary, fontFamily:'monospace', opacity:0.5 }}>{label}</span>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════
+   SCREEN 1 — Listing detail
+═══════════════════════════════════════ */
+function Screen1({ mode }) {
+  const tk = TK[mode];
+  const [photo, setPhoto] = React.useState(0);
+  const photos = 5;
+
+  const amenities = ['AC','Parking','Lift','Balcony','Wi-Fi','Power backup','Semi-furnished'];
+
+  return (
+    <div style={{ width:390, height:844, background:tk.bgBase, display:'flex', flexDirection:'column', borderRadius:4, overflow:'hidden' }}>
+      {/* Photo gallery */}
+      <div style={{ position:'relative', flexShrink:0 }}>
+        <PhotoStrip mode={mode} height={300}/>
+        {/* Back button over photo */}
+        <div style={{ position:'absolute', top:16, left:16,
+          width:36, height:36, borderRadius:'50%',
+          background:'rgba(0,0,0,0.35)', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer' }}>
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+            <path d="M12 14.5L6 9L12 3.5" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </div>
+        {/* Saved button */}
+        <div style={{ position:'absolute', top:16, right:16,
+          width:36, height:36, borderRadius:'50%',
+          background:'rgba(0,0,0,0.35)', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer' }}>
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+            <path d="M9 15.5C9 15.5 2 11 2 6.5A4 4 0 0 1 9 4.2 4 4 0 0 1 16 6.5C16 11 9 15.5 9 15.5Z"
+              stroke="#fff" strokeWidth="1.4" fill="none" strokeLinejoin="round"/>
+          </svg>
+        </div>
+        {/* Dots */}
+        <div style={{ position:'absolute', bottom:12, left:0, right:0,
+          display:'flex', justifyContent:'center', gap:5 }}>
+          {Array.from({length:photos}).map((_,i)=>(
+            <div key={i} onClick={()=>setPhoto(i)} style={{
+              width:i===photo?16:6, height:6, borderRadius:3,
+              background:i===photo?'#fff':'rgba(255,255,255,0.45)',
+              cursor:'pointer', transition:'width 0.2s',
+            }}/>
+          ))}
+        </div>
+      </div>
+
+      {/* Scrollable content */}
+      <div className="bscroll-y" style={{ flex:1, padding:'0 0 100px' }}>
+        {/* Header section */}
+        <div style={{ padding:'20px 24px 20px' }}>
+          <h1 style={{ fontFamily:"'Fraunces',serif", fontWeight:500, fontSize:24,
+            letterSpacing:'-0.02em', color:tk.textPrimary, lineHeight:1.2 }}>
+            Sunny 2BHK in DLF Phase 2
+          </h1>
+          <div style={{ marginTop:10, display:'flex', flexWrap:'wrap', gap:8, alignItems:'center' }}>
+            {['DLF Phase 2', '2BHK', '₹22,500/mo', 'Available 1 Jun'].map((tag,i) => (
+              <span key={i} style={{ fontSize:13, color:tk.textSecondary,
+                fontFamily:"'Inter',sans-serif", display:'flex', alignItems:'center', gap:4 }}>
+                {i > 0 && <span style={{ color:tk.border, marginRight:4 }}>·</span>}
+                {tag}
+              </span>
+            ))}
+          </div>
+          {/* Posted by */}
+          <div style={{ marginTop:14, display:'flex', alignItems:'center', gap:8 }}>
+            <AvatarPlaceholder mode={mode} size={36} initial="R"/>
+            <div style={{ display:'flex', flexDirection:'column', gap:2 }}>
+              <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                <span style={{ fontSize:14, color:tk.textPrimary, fontFamily:"'Inter',sans-serif", fontWeight:500 }}>
+                  Posted by Rahul
+                </span>
+                <VerifiedBadge mode={mode} size={14}/>
+                <span style={{ fontSize:14, color:tk.textSecondary, fontFamily:"'Inter',sans-serif" }}>
+                  verified at <span style={{ color:tk.textPrimary, fontWeight:500 }}>Blinkit</span>
+                </span>
+              </div>
+              <span style={{ fontSize:12, color:tk.textTertiary, fontFamily:"'Inter',sans-serif" }}>
+                Member since Jan 2025 · 3 listings
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <Divider mode={mode}/>
+
+        {/* About */}
+        <div style={{ padding:'20px 24px', display:'flex', flexDirection:'column', gap:12 }}>
+          <SectionHead mode={mode}>About this flat</SectionHead>
+          <p style={{ fontSize:15, color:tk.textSecondary, fontFamily:"'Inter',sans-serif", lineHeight:1.7 }}>
+            It's a sunny 2BHK on the 4th floor with great natural light throughout the day.
+            Walking distance to Cyber City metro (Phase 1). The kitchen is fully equipped, there's a
+            dedicated study corner, and the building has 24-hour security. Looking for someone who keeps
+            common spaces clean and is mostly out on weekdays.
+          </p>
+        </div>
+
+        <Divider mode={mode}/>
+
+        {/* Amenities */}
+        <div style={{ padding:'20px 24px', display:'flex', flexDirection:'column', gap:14 }}>
+          <SectionHead mode={mode}>Amenities</SectionHead>
+          <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
+            {amenities.map(a=>(
+              <span key={a} style={{ fontSize:13, color:tk.textSecondary,
+                fontFamily:"'Inter',sans-serif",
+                background:tk.surface, border:`1px solid ${tk.border}`,
+                borderRadius:100, padding:'5px 12px' }}>{a}</span>
+            ))}
+          </div>
+        </div>
+
+        <Divider mode={mode}/>
+
+        {/* Looking for */}
+        <div style={{ padding:'20px 24px', display:'flex', flexDirection:'column', gap:14 }}>
+          <SectionHead mode={mode}>Looking for</SectionHead>
+          <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+            {[
+              { label:'Gender', value:'Women preferred' },
+              { label:'Profession', value:'Tech, Consulting, Finance' },
+              { label:'Food', value:'Non-veg ok' },
+              { label:'Smoking', value:'Not allowed' },
+              { label:'Schedule', value:'Mostly office' },
+            ].map(row=>(
+              <div key={row.label} style={{ display:'flex', gap:12 }}>
+                <span style={{ fontSize:14, color:tk.textTertiary, fontFamily:"'Inter',sans-serif", width:80, flexShrink:0 }}>{row.label}</span>
+                <span style={{ fontSize:14, color:tk.textPrimary, fontFamily:"'Inter',sans-serif" }}>{row.value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <Divider mode={mode}/>
+
+        {/* Location */}
+        <div style={{ padding:'20px 24px', display:'flex', flexDirection:'column', gap:14 }}>
+          <SectionHead mode={mode}>Location</SectionHead>
+          {/* Mini map */}
+          <div style={{ borderRadius:12, overflow:'hidden', border:`1px solid ${tk.border}` }}>
+            <div style={{ height:120, position:'relative',
+              background:mode==='dark'?'#1A2925':'#EEE8E0',
+              display:'flex', alignItems:'center', justifyContent:'center' }}>
+              <svg width="342" height="120" viewBox="0 0 342 120" style={{ position:'absolute', inset:0 }}>
+                <rect width="342" height="120" fill={mode==='dark'?'#1A2925':'#EEE8E0'}/>
+                <path d="M0 60 H342" stroke={mode==='dark'?'#1F302D':'#FAF8F5'} strokeWidth="8"/>
+                <path d="M0 90 H342" stroke={mode==='dark'?'#1F302D':'#FAF8F5'} strokeWidth="5"/>
+                <path d="M120 0 V120" stroke={mode==='dark'?'#1F302D':'#FAF8F5'} strokeWidth="8"/>
+                <path d="M220 0 V120" stroke={mode==='dark'?'#1F302D':'#FAF8F5'} strokeWidth="5"/>
+              </svg>
+              {/* Pin */}
+              <svg width="24" height="30" viewBox="0 0 24 30" style={{ position:'relative', zIndex:1 }}>
+                <path d="M12 2C7.13 2 3 6.13 3 11c0 6.5 9 19 9 19s9-12.5 9-19C21 6.13 16.87 2 12 2z" fill={tk.accent}/>
+                <circle cx="12" cy="11" r="3.5" fill={mode==='dark'?TK.dark.bgBase:'#FAF8F5'}/>
+              </svg>
+            </div>
+            <div style={{ padding:'10px 14px 12px', display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:12 }}>
+              <p style={{ fontSize:13, color:tk.textSecondary, fontFamily:"'Inter',sans-serif", lineHeight:1.55, flex:1 }}>
+                <span style={{ color:tk.textPrimary, fontWeight:500 }}>8.4 km</span> from your office at Deloitte (Cyber City) — ~32 min in peak traffic.
+              </p>
+              <TertiaryBtn mode={mode} style={{ whiteSpace:'nowrap', fontSize:13, flexShrink:0, paddingTop:2 }}>Get directions</TertiaryBtn>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Fixed bottom bar */}
+      <div style={{ position:'absolute', bottom:0, left:0, right:0,
+        background:tk.bgBase, borderTop:`1px solid ${tk.border}`,
+        padding:'12px 20px 24px', display:'flex', gap:10, zIndex:10 }}>
+        <PrimaryBtn mode={mode} style={{ flex:1 }}>Send message</PrimaryBtn>
+        <button style={{ width:52, height:52, borderRadius:12,
+          background:'transparent', border:`1px solid ${tk.border}`,
+          display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', flexShrink:0 }}>
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <path d="M10 17.5C10 17.5 2.5 13 2.5 7.5A4.5 4.5 0 0 1 10 4.7 4.5 4.5 0 0 1 17.5 7.5C17.5 13 10 17.5 10 17.5Z"
+              stroke={tk.textSecondary} strokeWidth="1.4" fill="none" strokeLinejoin="round"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════
+   SCREEN 2 — Seeker profile detail
+═══════════════════════════════════════ */
+function Screen2({ mode }) {
+  const tk = TK[mode];
+
+  return (
+    <div style={{ width:390, height:844, background:tk.bgBase, display:'flex', flexDirection:'column', borderRadius:4, overflow:'hidden', position:'relative' }}>
+      {/* Top bar */}
+      <div style={{ padding:'16px 20px 0', display:'flex', alignItems:'center', justifyContent:'space-between', flexShrink:0, zIndex:2 }}>
+        <BackArrow mode={mode}/>
+        <KebabIcon mode={mode}/>
+      </div>
+
+      <div className="bscroll-y" style={{ flex:1, padding:'0 0 100px' }}>
+        {/* Hero — large circular avatar */}
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'20px 24px 24px', gap:14 }}>
+          <div style={{ width:100, height:100, borderRadius:'50%', flexShrink:0,
+            background:mode==='dark'?'repeating-linear-gradient(135deg,#1B2A28 0,#1B2A28 8px,#1E2E2C 8px,#1E2E2C 16px)'
+            :'repeating-linear-gradient(135deg,#F0ECE6 0,#F0ECE6 8px,#EDE8E0 8px,#EDE8E0 16px)',
+            border:`2px solid ${tk.border}`,
+            display:'flex', alignItems:'center', justifyContent:'center' }}>
+            <span style={{ fontSize:36, color:tk.textTertiary, fontFamily:"'Fraunces',serif", fontWeight:500 }}>P</span>
+          </div>
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:6, textAlign:'center' }}>
+            <h1 style={{ fontFamily:"'Fraunces',serif", fontWeight:500, fontSize:26,
+              letterSpacing:'-0.02em', color:tk.textPrimary }}>Priya Sharma, 27</h1>
+            <div style={{ display:'flex', alignItems:'center', gap:7 }}>
+              <VerifiedBadge mode={mode} size={15}/>
+              <span style={{ fontSize:14, color:tk.textSecondary, fontFamily:"'Inter',sans-serif" }}>
+                Software engineer · <span style={{ color:tk.textPrimary, fontWeight:500 }}>Blinkit</span>
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <Divider mode={mode}/>
+
+        {/* About */}
+        <div style={{ padding:'20px 24px', display:'flex', flexDirection:'column', gap:10 }}>
+          <SectionHead mode={mode}>About</SectionHead>
+          <p style={{ fontSize:15, color:tk.textSecondary, fontFamily:"'Inter',sans-serif", lineHeight:1.7 }}>
+            Into running and books. Looking for a chill flatmate near Cyber City. WFH two days a week —
+            I'm quiet during work hours but like cooking in the evenings. Long-term stay preferred.
+          </p>
+        </div>
+
+        <Divider mode={mode}/>
+
+        {/* Work */}
+        <div style={{ padding:'20px 24px', display:'flex', flexDirection:'column', gap:12 }}>
+          <SectionHead mode={mode}>Work</SectionHead>
+          <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+            {[
+              { label:'Profession', value:'Software engineer' },
+              { label:'Company', value:'Blinkit', verified:true },
+              { label:'Schedule', value:'Mostly office' },
+            ].map(row=>(
+              <div key={row.label} style={{ display:'flex', gap:12, alignItems:'center' }}>
+                <span style={{ fontSize:14, color:tk.textTertiary, fontFamily:"'Inter',sans-serif", width:90, flexShrink:0 }}>{row.label}</span>
+                <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                  <span style={{ fontSize:14, color:tk.textPrimary, fontFamily:"'Inter',sans-serif" }}>{row.value}</span>
+                  {row.verified && <VerifiedBadge mode={mode} size={13}/>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <Divider mode={mode}/>
+
+        {/* Looking for */}
+        <div style={{ padding:'20px 24px', display:'flex', flexDirection:'column', gap:12 }}>
+          <SectionHead mode={mode}>Looking for</SectionHead>
+          <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+            {[
+              { label:'Budget', value:'₹15,000 – ₹28,000/mo' },
+              { label:'Localities', value:'Cyber City, Golf Course Road, Sushant Lok' },
+              { label:'Move-in', value:'By 15 June 2025' },
+            ].map(row=>(
+              <div key={row.label} style={{ display:'flex', gap:12 }}>
+                <span style={{ fontSize:14, color:tk.textTertiary, fontFamily:"'Inter',sans-serif", width:90, flexShrink:0 }}>{row.label}</span>
+                <span style={{ fontSize:14, color:tk.textPrimary, fontFamily:"'Inter',sans-serif", flex:1 }}>{row.value}</span>
+              </div>
+            ))}
+          </div>
+          {/* Lifestyle tags */}
+          <div style={{ display:'flex', flexWrap:'wrap', gap:7, marginTop:4 }}>
+            {['Quiet household','Early bird','No smoking'].map(t=>(
+              <span key={t} style={{ fontSize:12, color:tk.textSecondary, fontFamily:"'Inter',sans-serif",
+                background:tk.accentTint, border:`1px solid ${tk.border}`, borderRadius:100, padding:'4px 10px' }}>{t}</span>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Fixed bottom bar */}
+      <div style={{ position:'absolute', bottom:0, left:0, right:0,
+        background:tk.bgBase, borderTop:`1px solid ${tk.border}`,
+        padding:'12px 20px 24px', display:'flex', gap:10, zIndex:10 }}>
+        <PrimaryBtn mode={mode} style={{ flex:1 }}>Send message</PrimaryBtn>
+        <button style={{ width:52, height:52, borderRadius:12,
+          background:'transparent', border:`1px solid ${tk.border}`,
+          display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', flexShrink:0 }}>
+          <KebabIcon mode={mode}/>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════
+   SCREEN 3 — Inbox
+═══════════════════════════════════════ */
+const CONVERSATIONS = [
+  { name:'Rahul Mehta', company:'Blinkit', initial:'R', preview:"Sure, I can show you the flat this weekend — Saturday works?", time:'2m', unread:true },
+  { name:'Ananya Kapoor', company:'EY', initial:'A', preview:"Thanks for reaching out. I'm looking in the same area.", time:'1h', unread:true },
+  { name:'Vikram Desai', company:'Accenture', initial:'V', preview:"No worries — let me know if you find anything else.", time:'3h', unread:false },
+  { name:'Simran Arora', company:'Deloitte', initial:'S', preview:"The flat is still available. Budget is flexible.", time:'Yesterday', unread:false },
+  { name:'Aditya Joshi', company:'Genpact', initial:'Ad', preview:"What's the lease duration you're looking at?", time:'Mon', unread:false },
+  { name:'Meghna Rao', company:'ZS Associates', initial:'M', preview:"I'll be visiting Gurgaon from May 10, could we meet?", time:'Sun', unread:false },
+];
+
+function Screen3({ mode }) {
+  const tk = TK[mode];
+  const [convs, setConvs] = React.useState(CONVERSATIONS);
+
+  return (
+    <div style={{ width:390, height:844, background:tk.bgBase, display:'flex', flexDirection:'column', borderRadius:4, overflow:'hidden' }}>
+      {/* Top bar */}
+      <div style={{ padding:'20px 24px 16px', display:'flex', alignItems:'center', justifyContent:'space-between', flexShrink:0 }}>
+        <h1 style={{ fontFamily:"'Fraunces',serif", fontWeight:500, fontSize:26,
+          letterSpacing:'-0.02em', color:tk.textPrimary }}>Messages</h1>
+        <button style={{ background:'none', border:'none', cursor:'pointer', padding:4 }}>
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <circle cx="9" cy="9" r="6.5" stroke={tk.textSecondary} strokeWidth="1.5"/>
+            <path d="M14 14l3.5 3.5" stroke={tk.textSecondary} strokeWidth="1.5" strokeLinecap="round"/>
+          </svg>
+        </button>
+      </div>
+
+      {/* Conversation list */}
+      <div className="bscroll-y" style={{ flex:1 }}>
+        {convs.map((c, i) => (
+          <div key={i} onClick={()=>{
+            const next=[...convs]; next[i]={...next[i],unread:false}; setConvs(next);
+          }} style={{ display:'flex', alignItems:'center', gap:12,
+            padding:'14px 24px',
+            borderBottom:`1px solid ${tk.border}`,
+            cursor:'pointer',
+            background: c.unread ? tk.accentTint : 'transparent',
+          }}>
+            <div style={{ position:'relative', flexShrink:0 }}>
+              <AvatarPlaceholder mode={mode} size={46} initial={c.initial}/>
+              {c.unread && (
+                <div style={{ position:'absolute', bottom:1, right:1,
+                  width:11, height:11, borderRadius:'50%',
+                  background:tk.accent,
+                  border:`2px solid ${c.unread?tk.accentTint:tk.bgBase}` }}/>
+              )}
+            </div>
+            <div style={{ flex:1, minWidth:0 }}>
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:3 }}>
+                <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                  <span style={{ fontSize:15, color:tk.textPrimary, fontFamily:"'Inter',sans-serif",
+                    fontWeight: c.unread ? 600 : 500 }}>{c.name}</span>
+                  <VerifiedBadge mode={mode} size={13}/>
+                </div>
+                <span style={{ fontSize:12, color:tk.textTertiary, fontFamily:"'Inter',sans-serif", flexShrink:0, marginLeft:8 }}>{c.time}</span>
+              </div>
+              <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                <span style={{ fontSize:12, color:tk.textTertiary, fontFamily:"'Inter',sans-serif" }}>{c.company} ·</span>
+                <span style={{ fontSize:13, color: c.unread ? tk.textPrimary : tk.textSecondary,
+                  fontFamily:"'Inter',sans-serif",
+                  fontWeight: c.unread ? 500 : 400,
+                  overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', flex:1 }}>{c.preview}</span>
+              </div>
+            </div>
+          </div>
+        ))}
+
+        {/* Empty state note */}
+        <div style={{ padding:'32px 24px', textAlign:'center' }}>
+          <p style={{ fontSize:13, color:tk.textTertiary, fontFamily:"'Inter',sans-serif", lineHeight:1.6 }}>
+            No conversations yet — when you message someone, it'll appear here.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════
+   SCREEN 4 — Conversation view
+═══════════════════════════════════════ */
+const MESSAGES = [
+  { from:'them', text:"Hi Priya, I saw your profile and I think you'd be a good fit for the flat. Happy to show you around this weekend if you're free.", time:'Thu 11:42 AM' },
+  { from:'me', text:"Hi Rahul, thanks for reaching out. The flat looks great from the photos. Is Saturday afternoon fine? Around 2pm?", time:'Thu 12:05 PM' },
+  { from:'them', text:"Saturday 2pm works perfectly. The building is Emaar MGF Palm Drive — I'll send you the gate number closer to the time.", time:'Thu 12:18 PM' },
+  { from:'me', text:"Perfect. One quick question — is the parking spot covered or open?", time:'Thu 12:20 PM' },
+  { from:'them', text:"It's covered, in the basement. Sticker-based — I'll get one issued once you move in.", time:'Thu 12:35 PM' },
+  { from:'me', text:"That's great, thank you. See you Saturday.", time:'Thu 12:36 PM' },
+];
+
+function ChatBubble({ msg, mode }) {
+  const tk = TK[mode];
+  const isMe = msg.from === 'me';
+  return (
+    <div style={{ display:'flex', flexDirection:'column', alignItems: isMe ? 'flex-end' : 'flex-start', gap:3, maxWidth:'80%',
+      alignSelf: isMe ? 'flex-end' : 'flex-start' }}>
+      <div style={{
+        background: isMe ? tk.bubbleMe : tk.bubbleThem,
+        color: isMe ? (mode==='dark'?'#D4EAE8':'#FAF8F5') : tk.textPrimary,
+        border: isMe ? 'none' : `1px solid ${tk.border}`,
+        borderRadius: isMe ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
+        padding:'10px 14px',
+        fontSize:14,
+        fontFamily:"'Inter',sans-serif",
+        lineHeight:1.55,
+      }}>{msg.text}</div>
+      <span style={{ fontSize:11, color:tk.textTertiary, fontFamily:"'Inter',sans-serif" }}>{msg.time}</span>
+    </div>
+  );
+}
+
+function Screen4({ mode }) {
+  const tk = TK[mode];
+  const [input, setInput] = React.useState('');
+
+  return (
+    <div style={{ width:390, height:844, background:tk.bgBase, display:'flex', flexDirection:'column', borderRadius:4, overflow:'hidden' }}>
+      {/* Top bar */}
+      <div style={{ padding:'14px 16px 12px', display:'flex', alignItems:'center', gap:10,
+        borderBottom:`1px solid ${tk.border}`, flexShrink:0 }}>
+        <BackArrow mode={mode}/>
+        <AvatarPlaceholder mode={mode} size={36} initial="R"/>
+        <div style={{ flex:1, display:'flex', flexDirection:'column', gap:2 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+            <span style={{ fontSize:15, color:tk.textPrimary, fontFamily:"'Inter',sans-serif", fontWeight:500 }}>Rahul Mehta</span>
+            <VerifiedBadge mode={mode} size={13}/>
+          </div>
+          <span style={{ fontSize:12, color:tk.textTertiary, fontFamily:"'Inter',sans-serif" }}>Blinkit · DLF Phase 2</span>
+        </div>
+        <button style={{ background:'none', border:'none', cursor:'pointer', padding:4 }}>
+          <KebabIcon mode={mode}/>
+        </button>
+      </div>
+
+      {/* Privacy banner */}
+      <div style={{ padding:'8px 16px', background:tk.accentTint,
+        borderBottom:`1px solid ${mode==='dark'?'rgba(91,168,158,0.15)':'rgba(26,95,90,0.10)'}`,
+        display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+        <span style={{ fontSize:12, color:tk.accent, fontFamily:"'Inter',sans-serif", textAlign:'center', lineHeight:1.4 }}>
+          Numbers will only be shared after you both agree.
+        </span>
+      </div>
+
+      {/* Messages */}
+      <div className="bscroll-y" style={{ flex:1, padding:'16px 16px 8px', display:'flex', flexDirection:'column', gap:12 }}>
+        {/* Number share pill */}
+        <div style={{ display:'flex', justifyContent:'center', marginBottom:4 }}>
+          <button style={{ height:32, padding:'0 16px', borderRadius:100,
+            border:`1px solid ${tk.accent}`, background:'transparent',
+            color:tk.accent, fontSize:13, fontFamily:"'Inter',sans-serif", fontWeight:500, cursor:'pointer' }}>
+            Request to share numbers
+          </button>
+        </div>
+        {MESSAGES.map((m,i) => <ChatBubble key={i} msg={m} mode={mode}/>)}
+      </div>
+
+      {/* Input bar */}
+      <div style={{ padding:'10px 16px 24px', borderTop:`1px solid ${tk.border}`,
+        display:'flex', gap:10, alignItems:'flex-end', flexShrink:0 }}>
+        <div style={{ flex:1, minHeight:44, background:tk.surface,
+          border:`1px solid ${tk.border}`, borderRadius:22,
+          padding:'10px 16px', display:'flex', alignItems:'center' }}>
+          <input
+            type="text"
+            value={input}
+            onChange={e=>setInput(e.target.value)}
+            placeholder="Message Rahul…"
+            style={{ width:'100%', background:'none', border:'none', outline:'none',
+              fontSize:15, fontFamily:"'Inter',sans-serif", color:tk.textPrimary }}
+          />
+        </div>
+        <button style={{ width:44, height:44, borderRadius:'50%',
+          background: input.trim() ? tk.accent : tk.border,
+          border:'none', cursor: input.trim() ? 'pointer' : 'default',
+          display:'flex', alignItems:'center', justifyContent:'center',
+          transition:'background 0.15s', flexShrink:0 }}>
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+            <path d="M15.5 9L2.5 3.5L6 9L2.5 14.5L15.5 9Z"
+              fill={input.trim()?(mode==='dark'?TK.dark.bgBase:'#FAF8F5'):'#fff'} fillOpacity={input.trim()?1:0.6}/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════
+   SCREEN 5 — Number share modal (2 variants)
+═══════════════════════════════════════ */
+function NumberShareModal({ mode, variant='request' }) {
+  const tk = TK[mode];
+  const isRequest = variant==='request';
+
+  return (
+    <div style={{ width:390, height:844, background:'rgba(0,0,0,0.40)', display:'flex',
+      alignItems:'center', justifyContent:'center', borderRadius:4, overflow:'hidden',
+      position:'relative' }}>
+      {/* Blurred chat in bg */}
+      <div style={{ position:'absolute', inset:0, filter:'blur(2px)', opacity:0.6, overflow:'hidden' }}>
+        <div style={{ background:tk.bgBase, width:'100%', height:'100%',
+          padding:'60px 16px 16px', display:'flex', flexDirection:'column', gap:12 }}>
+          {MESSAGES.slice(0,4).map((m,i)=><ChatBubble key={i} msg={m} mode={mode}/>)}
+        </div>
+      </div>
+
+      {/* Modal */}
+      <div style={{ width:342, background:tk.surface, borderRadius:20,
+        padding:28, display:'flex', flexDirection:'column', gap:20,
+        boxShadow:'0 20px 60px rgba(0,0,0,0.25)', position:'relative', zIndex:1 }}>
+
+        {/* Icon */}
+        <div style={{ display:'flex', justifyContent:'center' }}>
+          <div style={{ width:52, height:52, borderRadius:'50%',
+            background:tk.accentTint2, display:'flex', alignItems:'center', justifyContent:'center' }}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+              <path d="M6.5 4h2l1 4.5-2 1.5a11 11 0 0 0 6.5 6.5l1.5-2L20 15.5v2A1.5 1.5 0 0 1 18.5 19C9.4 19 5 12.6 5 5.5A1.5 1.5 0 0 1 6.5 4Z"
+                stroke={tk.accent} strokeWidth="1.5" strokeLinejoin="round" fill="none"/>
+            </svg>
+          </div>
+        </div>
+
+        {/* Copy */}
+        <div style={{ display:'flex', flexDirection:'column', gap:10, textAlign:'center' }}>
+          <h2 style={{ fontFamily:"'Fraunces',serif", fontWeight:500, fontSize:20,
+            letterSpacing:'-0.02em', color:tk.textPrimary, lineHeight:1.25 }}>
+            {isRequest ? 'Share your numbers?' : 'Rahul wants to share numbers'}
+          </h2>
+          <p style={{ fontSize:14, color:tk.textSecondary, fontFamily:"'Inter',sans-serif", lineHeight:1.65 }}>
+            {isRequest
+              ? "Both you and Rahul will see each other's phone numbers. You can still chat in Burrow."
+              : "If you agree, both of you will see each other's numbers. You can always chat here instead."}
+          </p>
+        </div>
+
+        {/* Buttons */}
+        <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+          <button style={{ width:'100%', height:52, background:tk.accent,
+            color:mode==='dark'?TK.dark.bgBase:'#FAF8F5', border:'none', borderRadius:12,
+            fontSize:16, fontFamily:"'Inter',sans-serif", fontWeight:500, cursor:'pointer' }}>
+            {isRequest ? 'Share' : 'Share my number too'}
+          </button>
+          <button style={{ width:'100%', height:52, background:'transparent',
+            color:tk.accent, border:`1px solid ${tk.accent}`, borderRadius:12,
+            fontSize:16, fontFamily:"'Inter',sans-serif", fontWeight:500, cursor:'pointer' }}>
+            {isRequest ? 'Not yet' : 'Keep chatting here'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════
+   APP
+═══════════════════════════════════════ */
+const ALL_SCREENS = [
+  { id:'s1',  label:'Screen 1 — Listing detail',         Component:({mode})=><Screen1 mode={mode}/>,            h:844 },
+  { id:'s2',  label:'Screen 2 — Seeker profile detail',  Component:({mode})=><Screen2 mode={mode}/>,            h:844 },
+  { id:'s3',  label:'Screen 3 — Inbox',                  Component:({mode})=><Screen3 mode={mode}/>,            h:844 },
+  { id:'s4',  label:'Screen 4 — Conversation',           Component:({mode})=><Screen4 mode={mode}/>,            h:844 },
+  { id:'s5a', label:'Screen 5a — Share numbers (request)',Component:({mode})=><NumberShareModal mode={mode} variant="request"/>, h:844 },
+  { id:'s5b', label:'Screen 5b — Share numbers (receive)',Component:({mode})=><NumberShareModal mode={mode} variant="receive"/>, h:844 },
+];
+
+function App() {
+  return (
+    <DesignCanvas>
+      {ALL_SCREENS.map(({ id, label, Component, h }) => (
+        <DCSection key={id} id={id} title={label}>
+          <DCArtboard id={`${id}-light`} label="Light mode" width={390} height={h}>
+            <Component mode="light"/>
+          </DCArtboard>
+          <DCArtboard id={`${id}-dark`} label="Dark mode" width={390} height={h}>
+            <Component mode="dark"/>
+          </DCArtboard>
+        </DCSection>
+      ))}
+    </DesignCanvas>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>

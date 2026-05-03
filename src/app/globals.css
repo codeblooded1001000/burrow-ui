@@ -1,0 +1,13 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    @apply antialiased;
+  }
+
+  body {
+    @apply min-h-screen bg-cream font-sans text-ink-primary dark:bg-dark-bg dark:text-dark-ink-primary;
+  }
+}
