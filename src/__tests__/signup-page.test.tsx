@@ -51,4 +51,14 @@ describe('SignupPage', () => {
     await user.click(screen.getByRole('button', { name: /Send verification code/i }));
     expect(mutateAsync).toHaveBeenCalledWith({ email: 'you@company.com' });
   });
+
+  it('demo Alt Mobility email skips send and uses Continue', async () => {
+    const user = userEvent.setup();
+    render(<SignupPage />);
+    await user.type(screen.getByLabelText(/Work email/i), 'prince@alt-mobility.com');
+    expect(screen.getByRole('button', { name: /^Continue$/i })).toBeVisible();
+    await user.click(screen.getByRole('button', { name: /^Continue$/i }));
+    expect(mutateAsync).not.toHaveBeenCalled();
+    expect(push).toHaveBeenCalledWith('/signup/verify');
+  });
 });

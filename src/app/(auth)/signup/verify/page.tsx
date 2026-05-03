@@ -13,6 +13,7 @@ import { OtpInput } from '@/components/ui/OtpInput';
 import { Subhead } from '@/components/ui/Subhead';
 import { ApiError } from '@/lib/api/client';
 import { friendlyMessageForCode, friendlyMessageForError } from '@/lib/api/error-messages';
+import { DEMO_STATIC_OTP, isDemoBypassSignupEmail } from '@/lib/auth/demo-bypass';
 import { useRequestOtpMutation, useVerifyOtpMutation } from '@/lib/hooks/auth/use-auth-mutations';
 import { VerifyOtpSchema, type VerifyOtpInput } from '@/lib/schemas/auth.schemas';
 import { formatCountdown, secondsUntilIso } from '@/lib/utils/resend';
@@ -24,6 +25,8 @@ export default function SignupVerifyPage() {
   const otpResendAvailableAt = useOnboardingStore((s) => s.otpResendAvailableAt);
   const setSignupToken = useOnboardingStore((s) => s.setSignupToken);
   const setOtpResendAvailableAt = useOnboardingStore((s) => s.setOtpResendAvailableAt);
+  const demoSignupOtp = useOnboardingStore((s) => s.demoSignupOtp);
+  const setDemoSignupOtp = useOnboardingStore((s) => s.setDemoSignupOtp);
   const advanceStep = useOnboardingStore((s) => s.advanceStep);
 
   const verifyOtp = useVerifyOtpMutation();
@@ -50,6 +53,12 @@ export default function SignupVerifyPage() {
   }, [email, form]);
 
   useEffect(() => {
+    if (email && demoSignupOtp && demoSignupOtp.length === 6) {
+      form.setValue('otp', demoSignupOtp, { shouldValidate: true });
+    }
+  }, [demoSignupOtp, email, form]);
+
+  useEffect(() => {
     const id = window.setInterval(() => setTick((t) => t + 1), 1000);
     return () => window.clearInterval(id);
   }, []);
@@ -60,6 +69,7 @@ export default function SignupVerifyPage() {
       form.setValue('otp', otp, { shouldValidate: true });
       try {
         const res = await verifyOtp.mutateAsync({ email, otp });
+        setDemoSignupOtp(null);
         setSignupToken(res.signupToken, res.expiresAt);
         advanceStep('pin');
         router.push('/signup/pin');
@@ -82,11 +92,11 @@ export default function SignupVerifyPage() {
         toast.error(friendlyMessageForError(e));
       }
     },
-    [advanceStep, email, form, router, setSignupToken, verifyOtp],
+    [advanceStep, email, form, router, setDemoSignupOtp, setSignupToken, verifyOtp],
   );
 
   const onResend = async () => {
-    if (!email) return;
+    if (!email || isDemoBypassSignupEmail(email)) return;
     try {
       const res = await requestOtp.mutateAsync({ email });
       setOtpResendAvailableAt(res.resendAvailableAt);
@@ -107,13 +117,26 @@ export default function SignupVerifyPage() {
   const waitSec = otpResendAvailableAt ? secondsUntilIso(otpResendAvailableAt) : 0;
   void tick;
 
+  const demoVerify = isDemoBypassSignupEmail(email);
+
   return (
     <PhoneShell progress={16} back onBack={() => router.push('/signup')}>
       <input type="hidden" {...form.register('email')} />
       <div className="mt-6 flex flex-col gap-3">
-        <Heading size={28}>Check your inbox</Heading>
+        <Heading size={28}>{demoVerify ? 'Demo verification' : 'Check your inbox'}</Heading>
         <Subhead>
-          We sent a 6-digit code to <span className="font-medium text-ink-primary dark:text-dark-ink-primary">{email}</span>
+          {demoVerify ? (
+            <>
+              No email was sent. Use code <span className="font-medium text-ink-primary dark:text-dark-ink-primary">{DEMO_STATIC_OTP}</span> for{' '}
+              <span className="font-medium text-ink-primary dark:text-dark-ink-primary">{email}</span>
+              — it is filled in automatically.
+            </>
+          ) : (
+            <>
+              We sent a 6-digit code to{' '}
+              <span className="font-medium text-ink-primary dark:text-dark-ink-primary">{email}</span>
+            </>
+          )}
         </Subhead>
       </div>
       <div className="mt-8 flex flex-col gap-5">
@@ -132,7 +155,9 @@ export default function SignupVerifyPage() {
           )}
         />
         <div className="flex flex-col items-center gap-2">
-          {waitSec > 0 ? (
+          {demoVerify ? (
+            <span className="font-sans text-sm text-ink-tertiary dark:text-dark-ink-tertiary">Demo — resend disabled</span>
+          ) : waitSec > 0 ? (
             <span className="font-sans text-sm text-ink-tertiary dark:text-dark-ink-tertiary">
               Resend in {formatCountdown(waitSec)}
             </span>
